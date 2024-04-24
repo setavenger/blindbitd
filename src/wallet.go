@@ -23,25 +23,28 @@ type Wallet struct {
 	LastScan       uint64           `json:"last_scan,omitempty"`
 	UTXOs          []OwnedUTXO      `json:"utxos,omitempty"`
 	Labels         []gobip352.Label `json:"labels"`
-	// ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
-	ChangeLabel gobip352.Label `json:"change_label"`
-	// nextLabelM indicates which m will be used to derive the next label
-	nextLabelM     uint32
-	DustLimit      uint64     `json:"dust_limit"`
-	PubKeysToWatch [][32]byte `json:"pub_keys_to_watch"`
+	ChangeLabel    gobip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
+	nextLabelM     uint32           // nextLabelM indicates which m will be used to derive the next label
+	DustLimit      uint64           `json:"dust_limit"`
+	PubKeysToWatch [][32]byte       `json:"pub_keys_to_watch"`
 	Addresses      `json:"addresses"`
 	LabelsMapping  `json:"labels_mapping"`
 }
 
 type OwnedUTXO struct {
-	Txid               [32]byte  `json:"txid,omitempty"`
-	Vout               uint32    `json:"vout,omitempty"`
-	Amount             uint64    `json:"amount"`
-	PrivKeyTweak       [32]byte  `json:"priv_key_tweak,omitempty"`
-	PubKey             [32]byte  `json:"pub_key,omitempty"`
-	TimestampConfirmed uint64    `json:"timestamp_confirmed,omitempty"`
-	State              UTXOState `json:"utxo_state,omitempty"`
-	Label              uint32    `json:"label"` // the pubKey associated with the label
+	Txid               [32]byte        `json:"txid,omitempty"`
+	Vout               uint32          `json:"vout,omitempty"`
+	Amount             uint64          `json:"amount"`
+	PrivKeyTweak       [32]byte        `json:"priv_key_tweak,omitempty"`
+	PubKey             [32]byte        `json:"pub_key,omitempty"`
+	TimestampConfirmed uint64          `json:"timestamp_confirmed,omitempty"`
+	State              UTXOState       `json:"utxo_state,omitempty"`
+	Label              *gobip352.Label `json:"label"` // the pubKey associated with the label
+}
+
+type Label struct {
+	Comment string
+	gobip352.Label
 }
 
 // Addresses maps the address to an annotation the annotation might be empty
@@ -49,10 +52,14 @@ type Addresses map[string]string
 
 // LabelsMapping
 // the key is the label's pubKey, the value is the Label data
-type LabelsMapping map[[33]byte]gobip352.Label
+type LabelsMapping map[[33]byte]Label
 
 func NewWallet() *Wallet {
-	return &Wallet{Addresses: Addresses{}, nextLabelM: 1}
+	return &Wallet{
+		Addresses:     Addresses{},
+		LabelsMapping: LabelsMapping{},
+		nextLabelM:    1,
+	}
 }
 
 func (w *Wallet) LoadWalletFromKeys(secretKeyScan, secretKeySpend [32]byte) {
@@ -78,7 +85,7 @@ func (w *Wallet) GenerateAddress() (string, error) {
 	return address, err
 }
 
-func (w *Wallet) GenerateNewLabel() (string, error) {
+func (w *Wallet) GenerateNewLabel(comment string) (string, error) {
 	// we don't allow m = 0 as it's reserved for the change label and should also never be exposed
 	if w.nextLabelM == 0 {
 		w.nextLabelM = 1
@@ -102,12 +109,13 @@ func (w *Wallet) GenerateNewLabel() (string, error) {
 
 	if exists {
 		// users should not create the same label twice
-		return "", LabelAlreadyExistsErr{}
+		return "", ErrLabelAlreadyExists
 	}
 
-	w.Addresses[address] = fmt.Sprintf("label: %d", m)
+	w.Addresses[address] = fmt.Sprintf("label-%d: %s", m, comment)
 	w.nextLabelM++
 
+	w.LabelsMapping[label.PubKey] = Label{Label: label, Comment: comment}
 	w.Labels = append(w.Labels, label)
 	return address, err
 }
@@ -128,17 +136,17 @@ func (w *Wallet) GenerateChangeLabel() (string, error) {
 
 	label.Address = address
 	w.ChangeLabel = label
-
+	w.LabelsMapping[label.PubKey] = Label{Label: label, Comment: "change"}
 	return address, err
 }
 
-func (w *Wallet) ConvertOwnedUTXOIntoVin(utxo OwnedUTXO) gobip352.Vin {
-	fullSecretKey := gobip352.AddPrivateKeys(w.secretKeySpend, utxo.PrivKeyTweak)
+func ConvertOwnedUTXOIntoVin(utxo OwnedUTXO) gobip352.Vin {
 	vin := gobip352.Vin{
 		Txid:         utxo.Txid,
 		Vout:         utxo.Vout,
+		Amount:       utxo.Amount,
 		ScriptPubKey: append([]byte{0x51, 0x20}, utxo.PubKey[:]...),
-		SecretKey:    &fullSecretKey,
+		SecretKey:    &utxo.PrivKeyTweak,
 		Taproot:      true,
 	}
 	return vin

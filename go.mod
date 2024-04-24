@@ -8,8 +8,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
-	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
-	github.com/setavenger/gobip352 v0.1.2
+	github.com/setavenger/gobip352 v0.1.4
 )
 
 require (
@@ -21,3 +20,6 @@ require (
 	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 )
+
+// todo remove on push
+replace github.com/setavenger/gobip352 => ../go-bip352

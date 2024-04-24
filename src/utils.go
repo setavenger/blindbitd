@@ -1,6 +1,9 @@
 package src
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/setavenger/gobip352"
+)
 
 func ConvertToFixedLength34(input []byte) [34]byte {
 	if len(input) != 34 {
@@ -22,4 +25,14 @@ func IsSilentPaymentAddress(address string) bool {
 		return true
 	}
 	return false
+}
+
+// ConvertSPRecipient converts a gobip352.Recipient to a Recipient native to this program
+func ConvertSPRecipient(recipient *gobip352.Recipient) *Recipient {
+	return &Recipient{
+		Address:    recipient.SilentPaymentAddress,
+		PkScript:   append([]byte{0x51, 0x20}, recipient.Output[:]...),
+		Amount:     int64(recipient.Amount),
+		Annotation: recipient.Data,
+	}
 }

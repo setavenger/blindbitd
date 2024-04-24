@@ -1,7 +1,24 @@
 package src
 
-type LabelAlreadyExistsErr struct{}
+import "errors"
 
-func (l LabelAlreadyExistsErr) Error() string {
-	return "label already exists"
-}
+// errors with `should not happen` indicate a bug in the program and not necessarily user input errors
+var (
+	ErrLabelAlreadyExists = errors.New("label already exists")
+
+	ErrMinChangeAmountNotReached = errors.New("min change amount not reached")
+
+	ErrWrongLengthRecipients = errors.New("wrong length new recipients")
+
+	ErrRecipientIncomplete = errors.New("recipient incomplete")
+
+	ErrNotSPAddress = errors.New("not a sp address")
+
+	ErrNoUTXOsInWallet = errors.New("no utxos in wallet")
+
+	ErrNoMatchForUTXO = errors.New("could not match UTXO to foundOutput, should not happen")
+
+	ErrTxInputAndVinLengthMismatch = errors.New("tx inputs and vins have different length, should not happen")
+
+	ErrNoMatchingVinFoundForTxInput = errors.New("there was no matching vin for the given tx input, should not happen")
+)

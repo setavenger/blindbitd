@@ -11,6 +11,8 @@ type Daemon struct {
 	*Client
 }
 
+var exampleLabelComments = [5]string{"Hello", "Donations for project", "Family and Friends", "Deal 1", "Deal 2"}
+
 func (d *Daemon) Run() {
 
 	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")
@@ -20,8 +22,27 @@ func (d *Daemon) Run() {
 	exampleScriptToWatch2, _ := hex.DecodeString("2a68ac94e5d66ad352876826bb3924118df4ca2854655ee0bc1a4512dffc7f80")
 
 	d.Wallet.LoadWalletFromKeys(gobip352.ConvertToFixedLength32(scanBytes), gobip352.ConvertToFixedLength32(spendBytes))
+	address, err := d.GenerateAddress()
+	if err != nil {
+		panic(err)
+	}
+	_, err = d.Wallet.GenerateChangeLabel()
+	if err != nil {
+		panic(err)
+	}
 
-	fmt.Println(d.Wallet.Addresses)
+	fmt.Println(address)
+	for _, labelComment := range exampleLabelComments {
+		address, err = d.GenerateNewLabel(labelComment)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(address)
+	}
+
+	//fmt.Println(d.Wallet.Addresses)
+	//fmt.Printf("%+v\n", d.LabelsMapping)
+
 	d.Wallet.PubKeysToWatch = [][32]byte{
 		gobip352.ConvertToFixedLength32(exampleScriptToWatch1),
 		gobip352.ConvertToFixedLength32(exampleScriptToWatch2),
@@ -33,27 +54,52 @@ func (d *Daemon) Run() {
 		panic("client not set")
 	}
 
-	ownedUTXOs, err := d.syncBlock(232)
+	var ownedUTXOs []OwnedUTXO
+	ownedUTXOs, err = d.syncBlock(235)
 	if err != nil {
 		panic(err)
 	}
 
-	if len(ownedUTXOs) > 0 {
-		fmt.Printf("%+v\n", ownedUTXOs[0])
+	d.Wallet.UTXOs = append(d.Wallet.UTXOs, ownedUTXOs...)
+
+	ownedUTXOs, err = d.syncBlock(236)
+	if err != nil {
+		panic(err)
 	}
 
 	d.Wallet.UTXOs = append(d.Wallet.UTXOs, ownedUTXOs...)
 
-	rawTx, err := d.Wallet.SimpleSendToRecipient(Recipient{
-		Address:    "tsp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7xqh6yy9ncjnqhqxazct0fzh98w7lpkm5fvlepqec2yy0sxlq4j6ccc9c679n",
-		Amount:     3_000_000_000,
-		Annotation: "helloooo world",
-	})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	if len(d.Wallet.UTXOs) > 0 {
+		//fmt.Printf("%+v\n", d.Wallet.UTXOs)
+		fmt.Println()
+		for _, utxo := range d.Wallet.UTXOs {
+			baseString := fmt.Sprintf("%x:%04d %016d", utxo.Txid, utxo.Vout, utxo.Amount)
+			if utxo.Label == nil {
+				fmt.Printf("%s - base\n", baseString)
+			} else {
+				fmt.Printf("%s - label-%d: %s\n", baseString, d.Wallet.LabelsMapping[utxo.Label.PubKey].M, d.Wallet.LabelsMapping[utxo.Label.PubKey].Comment)
+			}
+		}
+	} // 0000002499982400
+	//  2100000000000000
+	fmt.Println()
 
-	fmt.Printf("%x\n", rawTx)
+	signedTx, err := d.Wallet.SendToRecipients([]*Recipient{
+		{
+			Address:    "tsp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7xqh6yy9ncjnqhqxazct0fzh98w7lpkm5fvlepqec2yy0sxlq4j6ccc9c679n",
+			Amount:     int64(d.Wallet.UTXOs[0].Amount / 2),
+			Annotation: map[string]any{"label": "just casually paying myself"},
+		},
+		{
+			// this the 5th label
+			Address:    "tsp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7xqml0tkdw0vxkg3yqkxfyxgqfa9s0znxagejzpmuljcpwa3700mjaqw8cvja",
+			Amount:     int64(d.Wallet.UTXOs[0].Amount / 4),
+			Annotation: map[string]any{"label": "paying myself on a label"},
+		},
+	}, 10_000)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%x\n", signedTx)
 
 }

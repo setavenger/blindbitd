@@ -26,10 +26,10 @@ type Filter struct {
 	Data        []byte `json:"data,omitempty"`
 }
 
-type UTXO struct {
+type UTXOServed struct {
 	Txid         [32]byte `json:"txid"`
 	Vout         uint32   `json:"vout"`
-	Value        uint64   `json:"value"`
+	Amount       uint64   `json:"amount"`
 	ScriptPubKey [34]byte `json:"scriptpubkey"`
 	BlockHeight  uint64   `json:"block_height"`
 	BlockHash    [32]byte `json:"block_hash"`
@@ -132,7 +132,7 @@ func (c Client) GetFilter(blockHeight uint64) (*Filter, error) {
 	return filter, err
 }
 
-func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXO, error) {
+func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 	url := fmt.Sprintf("%s/utxos/%d", c.BaseUrl, blockHeight)
 
 	// HTTP GET request
@@ -153,7 +153,7 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXO, error) {
 	var dataSlice []struct {
 		Txid         string `json:"txid"`
 		Vout         uint32 `json:"vout"`
-		Value        uint64 `json:"value"`
+		Amount       uint64 `json:"value"` // todo refactor on backend as well, so json tag matches name
 		ScriptPubKey string `json:"scriptpubkey"`
 		BlockHeight  uint64 `json:"block_height"`
 		BlockHash    string `json:"block_hash"`
@@ -165,7 +165,7 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXO, error) {
 		return nil, err
 	}
 
-	var utxos []*UTXO
+	var utxos []*UTXOServed
 	for _, data := range dataSlice {
 		blockHashBytes, err := hex.DecodeString(data.BlockHash)
 		if err != nil {
@@ -180,10 +180,10 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXO, error) {
 			return nil, err
 		}
 
-		utxo := &UTXO{
+		utxo := &UTXOServed{
 			Txid:         gobip352.ConvertToFixedLength32(txidBytes),
 			Vout:         data.Vout,
-			Value:        data.Value,
+			Amount:       data.Amount,
 			BlockHeight:  data.BlockHeight,
 			BlockHash:    gobip352.ConvertToFixedLength32(blockHashBytes),
 			ScriptPubKey: ConvertToFixedLength34(scriptPubKeyBytes),
