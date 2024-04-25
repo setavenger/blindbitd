@@ -1,10 +1,11 @@
-package src
+package networking
 
 import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/setavenger/blindbitd/src/utils"
 	"github.com/setavenger/gobip352"
 	"io"
 	"io/ioutil"
@@ -186,7 +187,7 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 			Amount:       data.Amount,
 			BlockHeight:  data.BlockHeight,
 			BlockHash:    gobip352.ConvertToFixedLength32(blockHashBytes),
-			ScriptPubKey: ConvertToFixedLength34(scriptPubKeyBytes),
+			ScriptPubKey: utils.ConvertToFixedLength34(scriptPubKeyBytes),
 			Timestamp:    data.Timestamp,
 		}
 

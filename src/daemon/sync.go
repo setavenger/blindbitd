@@ -1,14 +1,16 @@
-package src
+package daemon
 
 import (
 	"github.com/btcsuite/btcd/btcutil/gcs"
 	"github.com/btcsuite/btcd/btcutil/gcs/builder"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/gobip352"
 )
 
 // syncBlock there are several possibilities how this returns no error and still an empty slice for FoundOutputs
-func (d *Daemon) syncBlock(blockHeight uint64) ([]OwnedUTXO, error) {
+func (d *Daemon) syncBlock(blockHeight uint64) ([]src.OwnedUTXO, error) {
 
 	tweaks, err := d.Client.GetTweaks(blockHeight, d.Wallet.DustLimit)
 	if err != nil {
@@ -28,7 +30,7 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]OwnedUTXO, error) {
 
 	for _, tweak := range tweaks {
 		var sharedSecret [33]byte
-		sharedSecret, err = gobip352.CreateSharedSecret(tweak, d.Wallet.secretKeyScan, nil)
+		sharedSecret, err = gobip352.CreateSharedSecret(tweak, d.Wallet.SecretKeyScan(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +121,7 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]OwnedUTXO, error) {
 
 	for _, tweak := range tweaks {
 		var foundOutputsPerTweak []*gobip352.FoundOutput
-		foundOutputsPerTweak, err = gobip352.ReceiverScanTransaction(d.secretKeyScan, d.PubKeySpend, labelsToCheck, blockOutputs, tweak, nil)
+		foundOutputsPerTweak, err = gobip352.ReceiverScanTransaction(d.Wallet.SecretKeyScan(), d.Wallet.PubKeySpend, labelsToCheck, blockOutputs, tweak, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -127,25 +129,25 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]OwnedUTXO, error) {
 	}
 
 	// use a map to not have to iterate for every found UTXOServed map is faster lookup
-	matchUTXOMap := make(map[[32]byte]*UTXOServed)
+	matchUTXOMap := make(map[[32]byte]*networking.UTXOServed)
 	for _, utxo := range utxos {
 		matchUTXOMap[gobip352.ConvertToFixedLength32(utxo.ScriptPubKey[2:])] = utxo
 	}
 
-	var ownedUTXOs []OwnedUTXO
+	var ownedUTXOs []src.OwnedUTXO
 	for _, foundOutput := range foundOutputs {
 		utxo, exists := matchUTXOMap[foundOutput.Output]
 		if !exists {
-			return nil, ErrNoMatchForUTXO
+			return nil, src.ErrNoMatchForUTXO
 		}
-		ownedUTXOs = append(ownedUTXOs, OwnedUTXO{
+		ownedUTXOs = append(ownedUTXOs, src.OwnedUTXO{
 			Txid:               utxo.Txid,
 			Vout:               utxo.Vout,
 			Amount:             utxo.Amount,
 			PrivKeyTweak:       foundOutput.SecKeyTweak,
 			PubKey:             foundOutput.Output,
 			TimestampConfirmed: 0,
-			State:              StateUnspent,      // should normally always be unspent here
+			State:              src.StateUnspent,  // should normally always be unspent here
 			Label:              foundOutput.Label, // todo add m once gobip352 is updated
 		})
 	}

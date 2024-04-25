@@ -6,59 +6,11 @@ import (
 	"github.com/setavenger/gobip352"
 )
 
-type UTXOState uint8
-
-const (
-	StateSpent UTXOState = iota
-	StatePending
-	StateUnspent
-)
-
-type Wallet struct {
-	secretKeyScan  [32]byte
-	secretKeySpend [32]byte         // todo might not populate it and only load it on spend
-	PubKeyScan     [33]byte         `json:"pub_key_scan"`
-	PubKeySpend    [33]byte         `json:"pub_key_spend"`
-	BirthHeight    uint64           `json:"birth_height,omitempty"`
-	LastScan       uint64           `json:"last_scan,omitempty"`
-	UTXOs          []OwnedUTXO      `json:"utxos,omitempty"`
-	Labels         []gobip352.Label `json:"labels"`
-	ChangeLabel    gobip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
-	nextLabelM     uint32           // nextLabelM indicates which m will be used to derive the next label
-	DustLimit      uint64           `json:"dust_limit"`
-	PubKeysToWatch [][32]byte       `json:"pub_keys_to_watch"`
-	Addresses      `json:"addresses"`
-	LabelsMapping  `json:"labels_mapping"`
-}
-
-type OwnedUTXO struct {
-	Txid               [32]byte        `json:"txid,omitempty"`
-	Vout               uint32          `json:"vout,omitempty"`
-	Amount             uint64          `json:"amount"`
-	PrivKeyTweak       [32]byte        `json:"priv_key_tweak,omitempty"`
-	PubKey             [32]byte        `json:"pub_key,omitempty"`
-	TimestampConfirmed uint64          `json:"timestamp_confirmed,omitempty"`
-	State              UTXOState       `json:"utxo_state,omitempty"`
-	Label              *gobip352.Label `json:"label"` // the pubKey associated with the label
-}
-
-type Label struct {
-	Comment string
-	gobip352.Label
-}
-
-// Addresses maps the address to an annotation the annotation might be empty
-type Addresses map[string]string
-
-// LabelsMapping
-// the key is the label's pubKey, the value is the Label data
-type LabelsMapping map[[33]byte]Label
-
 func NewWallet() *Wallet {
 	return &Wallet{
 		Addresses:     Addresses{},
 		LabelsMapping: LabelsMapping{},
-		nextLabelM:    1,
+		NextLabelM:    1,
 	}
 }
 
@@ -87,11 +39,11 @@ func (w *Wallet) GenerateAddress() (string, error) {
 
 func (w *Wallet) GenerateNewLabel(comment string) (string, error) {
 	// we don't allow m = 0 as it's reserved for the change label and should also never be exposed
-	if w.nextLabelM == 0 {
-		w.nextLabelM = 1
+	if w.NextLabelM == 0 {
+		w.NextLabelM = 1
 	}
 
-	m := w.nextLabelM
+	m := w.NextLabelM
 	label, err := gobip352.CreateLabel(w.secretKeyScan, m)
 	if err != nil {
 		return "", err
@@ -113,7 +65,7 @@ func (w *Wallet) GenerateNewLabel(comment string) (string, error) {
 	}
 
 	w.Addresses[address] = fmt.Sprintf("label-%d: %s", m, comment)
-	w.nextLabelM++
+	w.NextLabelM++
 
 	w.LabelsMapping[label.PubKey] = Label{Label: label, Comment: comment}
 	w.Labels = append(w.Labels, label)
@@ -150,4 +102,12 @@ func ConvertOwnedUTXOIntoVin(utxo OwnedUTXO) gobip352.Vin {
 		Taproot:      true,
 	}
 	return vin
+}
+
+func (w *Wallet) SecretKeyScan() [32]byte {
+	return w.secretKeyScan
+}
+
+func (w *Wallet) SecretKeySpend() [32]byte {
+	return w.secretKeySpend
 }

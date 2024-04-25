@@ -11,17 +11,11 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/setavenger/blindbitd/src/utils"
 	"github.com/setavenger/gobip352"
 )
 
 const ExtraDataAmountKey = "amount"
-
-type Recipient struct {
-	Address    string
-	PkScript   []byte
-	Amount     int64
-	Annotation map[string]any
-}
 
 // SendToRecipients
 // creates a signed transaction that sends to the specified recipients
@@ -144,10 +138,12 @@ func ParseSPRecipients(recipients []*Recipient, vins []*gobip352.Vin) ([]*Recipi
 	// newRecipients tracks the modified group of recipients in order to avoid clashes
 	var newRecipients []*Recipient
 	for _, recipient := range recipients {
-		isSP := IsSilentPaymentAddress(recipient.Address)
+		isSP := utils.IsSilentPaymentAddress(recipient.Address)
 		if !isSP {
 			newRecipients = append(newRecipients, recipient)
 			continue
+		} else {
+			recipient.PkScript = nil
 		}
 
 		extraData := map[string]any{}
@@ -303,4 +299,16 @@ func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*gobip352.Vin) 
 
 	return psbtInput, ErrNoMatchingVinFoundForTxInput
 
+}
+
+/*  util functions */
+
+// ConvertSPRecipient converts a gobip352.Recipient to a Recipient native to this program
+func ConvertSPRecipient(recipient *gobip352.Recipient) *Recipient {
+	return &Recipient{
+		Address:    recipient.SilentPaymentAddress,
+		PkScript:   append([]byte{0x51, 0x20}, recipient.Output[:]...),
+		Amount:     int64(recipient.Amount),
+		Annotation: recipient.Data,
+	}
 }

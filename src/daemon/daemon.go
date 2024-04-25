@@ -1,20 +1,24 @@
-package src
+package daemon
 
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/networking"
+	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/gobip352"
 )
 
 type Daemon struct {
-	*Wallet
-	*Client
+	Status pb.Status
+	*src.Wallet
+	*networking.Client
 }
 
 var exampleLabelComments = [5]string{"Hello", "Donations for project", "Family and Friends", "Deal 1", "Deal 2"}
 
 func (d *Daemon) Run() {
-
+	d.Status = pb.Status_STATUS_SCANNING
 	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")
 	spendBytes, _ := hex.DecodeString("c88567742d5019d7ccc81f6e82cef8ef01997a6a3761cc9166036b580549539b")
 
@@ -54,7 +58,7 @@ func (d *Daemon) Run() {
 		panic("client not set")
 	}
 
-	var ownedUTXOs []OwnedUTXO
+	var ownedUTXOs []src.OwnedUTXO
 	ownedUTXOs, err = d.syncBlock(235)
 	if err != nil {
 		panic(err)
@@ -84,7 +88,7 @@ func (d *Daemon) Run() {
 	//  2100000000000000
 	fmt.Println()
 
-	signedTx, err := d.Wallet.SendToRecipients([]*Recipient{
+	signedTx, err := d.Wallet.SendToRecipients([]*src.Recipient{
 		{
 			Address:    "tsp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7xqh6yy9ncjnqhqxazct0fzh98w7lpkm5fvlepqec2yy0sxlq4j6ccc9c679n",
 			Amount:     int64(d.Wallet.UTXOs[0].Amount / 2),
@@ -101,5 +105,5 @@ func (d *Daemon) Run() {
 		panic(err)
 	}
 	fmt.Printf("%x\n", signedTx)
-
+	d.Status = pb.Status_STATUS_RUNNING
 }
