@@ -1,4 +1,4 @@
-package src
+package daemon
 
 import (
 	"bytes"
@@ -8,18 +8,22 @@ import (
 	"github.com/btcsuite/btcd/btcutil/coinset"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/btcutil/txsort"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/utils"
 	"github.com/setavenger/gobip352"
+	"log"
 )
 
 const ExtraDataAmountKey = "amount"
 
 // SendToRecipients
 // creates a signed transaction that sends to the specified recipients
-func (w *Wallet) SendToRecipients(recipients []*Recipient, fee int64) ([]byte, error) {
+// todo should all these functions just be Daemon functions
+func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byte, error) {
 
 	var sumAllOutputs int64
 	for _, recipient := range recipients {
@@ -27,8 +31,8 @@ func (w *Wallet) SendToRecipients(recipients []*Recipient, fee int64) ([]byte, e
 	}
 
 	var allPossibleVins []gobip352.Vin
-	for _, utxo := range w.UTXOs {
-		vin := ConvertOwnedUTXOIntoVin(utxo)
+	for _, utxo := range d.Wallet.UTXOs {
+		vin := src.ConvertOwnedUTXOIntoVin(utxo)
 		allPossibleVins = append(allPossibleVins, vin)
 	}
 
@@ -39,8 +43,8 @@ func (w *Wallet) SendToRecipients(recipients []*Recipient, fee int64) ([]byte, e
 	}
 
 	coins, err := coinset.MinNumberCoinSelector{
-		MaxInputs:       len(w.UTXOs),
-		MinChangeAmount: btcutil.Amount(MinChangeAmount),
+		MaxInputs:       len(d.Wallet.UTXOs),
+		MinChangeAmount: btcutil.Amount(src.MinChangeAmount),
 	}.CoinSelect(btcutil.Amount(sumAllOutputs+fee), allPossibleCoins)
 	if err != nil {
 		// ErrCoinsNoSelectionAvailable
@@ -51,7 +55,7 @@ func (w *Wallet) SendToRecipients(recipients []*Recipient, fee int64) ([]byte, e
 	var vins = make([]*gobip352.Vin, len(coins.Coins()))
 	for i, coin := range coins.Coins() {
 		if vin, ok := coin.(*gobip352.Vin); ok {
-			fullVinSecretKey := gobip352.AddPrivateKeys(*vin.SecretKey, w.secretKeySpend)
+			fullVinSecretKey := gobip352.AddPrivateKeys(*vin.SecretKey, d.Wallet.SecretKeySpend())
 			vin.SecretKey = &fullVinSecretKey
 			vins[i] = vin
 		} else {
@@ -73,19 +77,19 @@ func (w *Wallet) SendToRecipients(recipients []*Recipient, fee int64) ([]byte, e
 	switch changeAmount := difference - fee; {
 	case changeAmount == 0:
 	// do nothing, no change output needed
-	case changeAmount < MinChangeAmount:
+	case changeAmount < src.MinChangeAmount:
 		// here we fail because the changeAmount is not enough
-		return nil, ErrMinChangeAmountNotReached
+		return nil, src.ErrMinChangeAmountNotReached
 	default:
 		// change exists, and it is greater than the MinChangeAmount
-		recipients = append(recipients, &Recipient{
-			Address: w.ChangeLabel.Address,
+		recipients = append(recipients, &src.Recipient{
+			Address: d.ChangeLabel.Address,
 			Amount:  changeAmount,
 		})
 	}
 
 	// extract the ScriptPubKeys of the SP recipients with the selected txInputs
-	recipients, err = ParseSPRecipients(recipients, vins)
+	recipients, err = ParseRecipients(recipients, vins, d.Network)
 	if err != nil {
 		return nil, err
 	}
@@ -124,26 +128,41 @@ func (w *Wallet) SendToRecipients(recipients []*Recipient, fee int64) ([]byte, e
 	return buf.Bytes(), err
 }
 
-// ParseSPRecipients
-// Checks all recipients whether we are sending to a Silent Payment address.
-// If so we derive the corresponding output.
-// Has to be called after the final coinSelection is done.
-// Otherwise, the SP outputs will not be found by the receiver.
+// ParseRecipients
+// Checks all recipients and adds the PkScript based on the given address.
+// Silent Payment addresses are also parsed and the outputs will be computed based on the vins.
+// For that reason this function has to be called after the final coinSelection is done.
+// Otherwise, the SP outputs will NOT be found by the receiver.
 // SP Recipients are always at the end.
 // Hence, the tx must be sorted according to BIP 69 to avoid a specific signature of this wallet.
+//
+// NOTE: Existing PkScripts will NOT be overridden, those recipients will be skipped and returned as given
 // todo keep original order in case that is relevant for any use case?
-func ParseSPRecipients(recipients []*Recipient, vins []*gobip352.Vin) ([]*Recipient, error) {
+func ParseRecipients(recipients []*src.Recipient, vins []*gobip352.Vin, chainParam *chaincfg.Params) ([]*src.Recipient, error) {
 	var spRecipients []*gobip352.Recipient
 
 	// newRecipients tracks the modified group of recipients in order to avoid clashes
-	var newRecipients []*Recipient
+	var newRecipients []*src.Recipient
 	for _, recipient := range recipients {
-		isSP := utils.IsSilentPaymentAddress(recipient.Address)
-		if !isSP {
+		if recipient.PkScript != nil {
+			// skip if a pkScript is already present (for what ever reason)
 			newRecipients = append(newRecipients, recipient)
 			continue
-		} else {
-			recipient.PkScript = nil
+		}
+		isSP := utils.IsSilentPaymentAddress(recipient.Address)
+		if !isSP {
+			address, err := btcutil.DecodeAddress(recipient.Address, chainParam)
+			if err != nil {
+				log.Fatalf("Failed to decode address: %v", err)
+			}
+			scriptPubKey, err := txscript.PayToAddrScript(address)
+			if err != nil {
+				log.Fatalf("Failed to create scriptPubKey: %v", err)
+			}
+			recipient.PkScript = scriptPubKey
+
+			newRecipients = append(newRecipients, recipient)
+			continue
 		}
 
 		extraData := map[string]any{}
@@ -156,9 +175,11 @@ func ParseSPRecipients(recipients []*Recipient, vins []*gobip352.Vin) ([]*Recipi
 		})
 	}
 
-	err := gobip352.SenderCreateOutputs(spRecipients, vins, false)
-	if err != nil {
-		return nil, err
+	if len(spRecipients) > 0 {
+		err := gobip352.SenderCreateOutputs(spRecipients, vins, false, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, spRecipient := range spRecipients {
@@ -168,7 +189,7 @@ func ParseSPRecipients(recipients []*Recipient, vins []*gobip352.Vin) ([]*Recipi
 	// This case might not be realistic so the check could potentially be removed safely
 	if len(recipients) != len(newRecipients) {
 		// for some reason we have a different number of recipients after parsing them.
-		return nil, ErrWrongLengthRecipients
+		return nil, src.ErrWrongLengthRecipients
 	}
 
 	return newRecipients, nil
@@ -177,17 +198,17 @@ func ParseSPRecipients(recipients []*Recipient, vins []*gobip352.Vin) ([]*Recipi
 // sanityCheckRecipientsForSending
 // checks whether any of the Recipients lacks the necessary information to construct the transaction.
 // required for every recipient: Recipient.PkScript and Recipient.Amount
-func sanityCheckRecipientsForSending(recipients []*Recipient) error {
+func sanityCheckRecipientsForSending(recipients []*src.Recipient) error {
 	for _, recipient := range recipients {
 		if recipient.PkScript == nil || recipient.Amount == 0 {
 			// if we choose a lot of logging in this module/program we could log the incomplete recipient here
-			return ErrRecipientIncomplete
+			return src.ErrRecipientIncomplete
 		}
 	}
 	return nil
 }
 
-func CreateUnsignedPsbt(recipients []*Recipient, vins []*gobip352.Vin) (*psbt.Packet, error) {
+func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psbt.Packet, error) {
 	var txOutputs []*wire.TxOut
 	for _, recipient := range recipients {
 		txOutputs = append(txOutputs, wire.NewTxOut(recipient.Amount, recipient.PkScript))
@@ -229,7 +250,7 @@ func CreateUnsignedPsbt(recipients []*Recipient, vins []*gobip352.Vin) (*psbt.Pa
 // fails if inputs in packet have a different order than vins
 func SignPsbt(packet *psbt.Packet, vins []*gobip352.Vin) error {
 	if len(packet.UnsignedTx.TxIn) != len(vins) {
-		return ErrTxInputAndVinLengthMismatch
+		return src.ErrTxInputAndVinLengthMismatch
 	}
 
 	prevOutsForFetcher := make(map[wire.OutPoint]*wire.TxOut, len(vins))
@@ -297,18 +318,18 @@ func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*gobip352.Vin) 
 		}
 	}
 
-	return psbtInput, ErrNoMatchingVinFoundForTxInput
+	return psbtInput, src.ErrNoMatchingVinFoundForTxInput
 
 }
 
 /*  util functions */
 
 // ConvertSPRecipient converts a gobip352.Recipient to a Recipient native to this program
-func ConvertSPRecipient(recipient *gobip352.Recipient) *Recipient {
-	return &Recipient{
-		Address:    recipient.SilentPaymentAddress,
-		PkScript:   append([]byte{0x51, 0x20}, recipient.Output[:]...),
-		Amount:     int64(recipient.Amount),
-		Annotation: recipient.Data,
+func ConvertSPRecipient(recipient *gobip352.Recipient) *src.Recipient {
+	return &src.Recipient{
+		Address:  recipient.SilentPaymentAddress,
+		PkScript: append([]byte{0x51, 0x20}, recipient.Output[:]...),
+		Amount:   int64(recipient.Amount),
+		Data:     recipient.Data,
 	}
 }

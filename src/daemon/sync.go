@@ -1,12 +1,15 @@
 package daemon
 
 import (
+	"fmt"
 	"github.com/btcsuite/btcd/btcutil/gcs"
 	"github.com/btcsuite/btcd/btcutil/gcs/builder"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/gobip352"
+	"time"
 )
 
 // syncBlock there are several possibilities how this returns no error and still an empty slice for FoundOutputs
@@ -128,7 +131,7 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]src.OwnedUTXO, error) {
 		foundOutputs = append(foundOutputs, foundOutputsPerTweak...)
 	}
 
-	// use a map to not have to iterate for every found UTXOServed map is faster lookup
+	// use a map to not have to iterate for every found UTXOServed, map should be faster lookup
 	matchUTXOMap := make(map[[32]byte]*networking.UTXOServed)
 	for _, utxo := range utxos {
 		matchUTXOMap[gobip352.ConvertToFixedLength32(utxo.ScriptPubKey[2:])] = utxo
@@ -136,21 +139,86 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]src.OwnedUTXO, error) {
 
 	var ownedUTXOs []src.OwnedUTXO
 	for _, foundOutput := range foundOutputs {
+
 		utxo, exists := matchUTXOMap[foundOutput.Output]
 		if !exists {
 			return nil, src.ErrNoMatchForUTXO
 		}
+		state := src.StateUnspent
+		if utxo.Spent {
+			state = src.StateSpent
+		}
 		ownedUTXOs = append(ownedUTXOs, src.OwnedUTXO{
-			Txid:               utxo.Txid,
-			Vout:               utxo.Vout,
-			Amount:             utxo.Amount,
-			PrivKeyTweak:       foundOutput.SecKeyTweak,
-			PubKey:             foundOutput.Output,
-			TimestampConfirmed: 0,
-			State:              src.StateUnspent,  // should normally always be unspent here
-			Label:              foundOutput.Label, // todo add m once gobip352 is updated
+			Txid:         utxo.Txid,
+			Vout:         utxo.Vout,
+			Amount:       utxo.Amount,
+			PrivKeyTweak: foundOutput.SecKeyTweak,
+			PubKey:       foundOutput.Output,
+			Timestamp:    utxo.Timestamp,
+			State:        state,             // should normally always be unspent here
+			Label:        foundOutput.Label, // todo add m once gobip352 is updated
 		})
 	}
 
 	return ownedUTXOs, err
+}
+
+func (d *Daemon) SyncToTip(chainTip uint64) error {
+	var err error
+	if chainTip == 0 {
+		chainTip, err = d.Client.GetChainTip()
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("Tip:", chainTip)
+	var startHeight = d.Wallet.BirthHeight
+	if d.Wallet.LastScanHeight > startHeight {
+		startHeight = d.Wallet.LastScanHeight
+	}
+
+	if startHeight >= chainTip {
+		return nil
+	}
+
+	for i := startHeight; i < chainTip+1; i++ {
+		// possible logging here to indicate to the user
+		fmt.Println("syncing:", i)
+		var ownedUTXOs []src.OwnedUTXO
+		ownedUTXOs, err = d.syncBlock(i)
+		if err != nil {
+			return err
+		}
+		if ownedUTXOs == nil {
+			continue
+		}
+		d.Wallet.UTXOs = append(d.Wallet.UTXOs, ownedUTXOs...)
+		d.Wallet.LastScanHeight = i
+		err = database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *Daemon) ContinuousScan() error {
+
+	for {
+		<-time.NewTicker(5 * time.Second).C
+		chainTip, err := d.Client.GetChainTip()
+		if err != nil {
+			return err
+		}
+		if chainTip <= d.LastScanHeight {
+			continue
+		}
+
+		err = d.SyncToTip(chainTip)
+		if err != nil {
+			return err
+		}
+	}
 }

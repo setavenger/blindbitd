@@ -1,6 +1,11 @@
 package src
 
-import "github.com/setavenger/gobip352"
+import (
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"github.com/setavenger/gobip352"
+)
 
 type UTXOState int8
 
@@ -11,37 +16,9 @@ const (
 	StateSpent
 )
 
-type Wallet struct {
-	secretKeyScan  [32]byte
-	secretKeySpend [32]byte         // todo might not populate it and only load it on spend
-	PubKeyScan     [33]byte         `json:"pub_key_scan"`
-	PubKeySpend    [33]byte         `json:"pub_key_spend"`
-	BirthHeight    uint64           `json:"birth_height,omitempty"`
-	LastScan       uint64           `json:"last_scan,omitempty"`
-	UTXOs          []OwnedUTXO      `json:"utxos,omitempty"`
-	Labels         []gobip352.Label `json:"labels"`
-	ChangeLabel    gobip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
-	NextLabelM     uint32           // NextLabelM indicates which m will be used to derive the next label
-	DustLimit      uint64           `json:"dust_limit"`
-	PubKeysToWatch [][32]byte       `json:"pub_keys_to_watch"`
-	Addresses      `json:"addresses"`
-	LabelsMapping  `json:"labels_mapping"`
-}
-
-type OwnedUTXO struct {
-	Txid               [32]byte        `json:"txid,omitempty"`
-	Vout               uint32          `json:"vout,omitempty"`
-	Amount             uint64          `json:"amount"`
-	PrivKeyTweak       [32]byte        `json:"priv_key_tweak,omitempty"`
-	PubKey             [32]byte        `json:"pub_key,omitempty"`
-	TimestampConfirmed uint64          `json:"timestamp_confirmed,omitempty"`
-	State              UTXOState       `json:"utxo_state,omitempty"`
-	Label              *gobip352.Label `json:"label"` // the pubKey associated with the label
-}
-
 type Label struct {
-	Comment string
-	gobip352.Label
+	Comment        string `json:"comment"`
+	gobip352.Label `json:"label"`
 }
 
 // Addresses maps the address to an annotation the annotation might be empty
@@ -51,43 +28,38 @@ type Addresses map[string]string
 // the key is the label's pubKey, the value is the Label data
 type LabelsMapping map[[33]byte]Label
 
+func (lm *LabelsMapping) MarshalJSON() ([]byte, error) {
+	// Convert your map to a type that can be marshaled by the standard JSON package
+	aux := make(map[string]Label)
+	for k, v := range *lm {
+		key := fmt.Sprintf("%x", k) // Convert byte array to hex string
+		aux[key] = v
+	}
+	return json.Marshal(aux)
+}
+
+func (lm *LabelsMapping) UnmarshalJSON(data []byte) error {
+	aux := make(map[string]Label)
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	*lm = make(LabelsMapping)
+	for k, v := range aux {
+		var key [33]byte
+		_, err := hex.Decode(key[:], []byte(k))
+		if err != nil {
+			return err
+		}
+		(*lm)[key] = v
+	}
+	return nil
+}
+
 type Recipient struct {
 	Address    string
 	PkScript   []byte
 	Amount     int64
-	Annotation map[string]any
+	Annotation string
+	Data       map[string]any
 }
-
-// =============== IPC Transfer Types below =============== //
-
-// todo delete those proto takes care of this
-
-type IpcOwnedUTXO struct {
-	Txid               [32]byte  `json:"txid,omitempty"`
-	Vout               uint32    `json:"vout,omitempty"`
-	Amount             uint64    `json:"amount"`
-	PrivKeyTweak       [32]byte  `json:"priv_key_tweak,omitempty"`
-	PubKey             [32]byte  `json:"pub_key,omitempty"`
-	TimestampConfirmed uint64    `json:"timestamp_confirmed,omitempty"`
-	State              UTXOState `json:"utxo_state,omitempty"`
-	Label              *[33]byte `json:"label"` // the pubKey associated with the label
-}
-
-func ConvertUtxoForIpc(utxo OwnedUTXO) IpcOwnedUTXO {
-	var labelKey *[33]byte
-	if utxo.Label != nil {
-		labelKey = &utxo.Label.PubKey
-	}
-	return IpcOwnedUTXO{
-		Txid:               utxo.Txid,
-		Vout:               utxo.Vout,
-		Amount:             utxo.Amount,
-		PrivKeyTweak:       utxo.PrivKeyTweak,
-		PubKey:             utxo.PubKey,
-		TimestampConfirmed: utxo.TimestampConfirmed,
-		State:              utxo.State,
-		Label:              labelKey,
-	}
-}
-
-//

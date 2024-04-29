@@ -8,7 +8,6 @@ import (
 	"github.com/setavenger/blindbitd/src/utils"
 	"github.com/setavenger/gobip352"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -35,6 +34,7 @@ type UTXOServed struct {
 	BlockHeight  uint64   `json:"block_height"`
 	BlockHash    [32]byte `json:"block_hash"`
 	Timestamp    uint64   `json:"timestamp"`
+	Spent        bool     `json:"spent"`
 }
 
 func (c Client) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
@@ -53,7 +53,7 @@ func (c Client) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
 	}(resp.Body)
 
 	// Read response body
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +86,34 @@ func (c Client) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
 	return bytesData, nil
 }
 
+func (c Client) GetChainTip() (uint64, error) {
+	url := fmt.Sprintf("%s/block-height", c.BaseUrl)
+
+	// HTTP GET request
+	resp, err := http.Get(url)
+	if err != nil {
+		return 0, err
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	var data struct {
+		BlockHeight uint64 `json:"block_height"`
+	}
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return 0, err
+	}
+
+	return data.BlockHeight, err
+}
+
 func (c Client) GetFilter(blockHeight uint64) (*Filter, error) {
 	url := fmt.Sprintf("%s/filter/%d", c.BaseUrl, blockHeight)
 
@@ -98,7 +126,7 @@ func (c Client) GetFilter(blockHeight uint64) (*Filter, error) {
 		_ = Body.Close()
 	}(resp.Body)
 	// Read response body
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +174,7 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 	}(resp.Body)
 
 	// Read response body
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +187,7 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 		BlockHeight  uint64 `json:"block_height"`
 		BlockHash    string `json:"block_hash"`
 		Timestamp    uint64 `json:"timestamp"`
+		Spent        bool   `json:"spent"`
 	}
 
 	err = json.Unmarshal(body, &dataSlice)
@@ -189,6 +218,7 @@ func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 			BlockHash:    gobip352.ConvertToFixedLength32(blockHashBytes),
 			ScriptPubKey: utils.ConvertToFixedLength34(scriptPubKeyBytes),
 			Timestamp:    data.Timestamp,
+			Spent:        data.Spent,
 		}
 
 		utxos = append(utxos, utxo)

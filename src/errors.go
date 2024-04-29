@@ -21,4 +21,6 @@ var (
 	ErrTxInputAndVinLengthMismatch = errors.New("tx inputs and vins have different length, should not happen")
 
 	ErrNoMatchingVinFoundForTxInput = errors.New("there was no matching vin for the given tx input, should not happen")
+
+	ErrDaemonNotSet = errors.New("daemon is not initialised")
 )

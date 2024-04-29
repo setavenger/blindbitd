@@ -19,8 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	IpcService_Status_FullMethodName    = "/ipc.IpcService/Status"
-	IpcService_ListUTXOs_FullMethodName = "/ipc.IpcService/ListUTXOs"
+	IpcService_Status_FullMethodName            = "/ipc.IpcService/Status"
+	IpcService_Unlock_FullMethodName            = "/ipc.IpcService/Unlock"
+	IpcService_Shutdown_FullMethodName          = "/ipc.IpcService/Shutdown"
+	IpcService_SetPassword_FullMethodName       = "/ipc.IpcService/SetPassword"
+	IpcService_ListUTXOs_FullMethodName         = "/ipc.IpcService/ListUTXOs"
+	IpcService_CreateTransaction_FullMethodName = "/ipc.IpcService/CreateTransaction"
 )
 
 // IpcServiceClient is the client API for IpcService service.
@@ -29,7 +33,11 @@ const (
 type IpcServiceClient interface {
 	// Alive pings the daemon and returns true if the daemon is alive
 	Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*StatusResponse, error)
+	Unlock(ctx context.Context, in *PasswordRequest, opts ...grpc.CallOption) (*BoolResponse, error)
+	Shutdown(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BoolResponse, error)
+	SetPassword(ctx context.Context, in *PasswordRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	ListUTXOs(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UTXOCollection, error)
+	CreateTransaction(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*RawTransaction, error)
 }
 
 type ipcServiceClient struct {
@@ -49,9 +57,45 @@ func (c *ipcServiceClient) Status(ctx context.Context, in *Empty, opts ...grpc.C
 	return out, nil
 }
 
+func (c *ipcServiceClient) Unlock(ctx context.Context, in *PasswordRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, IpcService_Unlock_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ipcServiceClient) Shutdown(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BoolResponse, error) {
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, IpcService_Shutdown_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ipcServiceClient) SetPassword(ctx context.Context, in *PasswordRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, IpcService_SetPassword_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ipcServiceClient) ListUTXOs(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UTXOCollection, error) {
 	out := new(UTXOCollection)
 	err := c.cc.Invoke(ctx, IpcService_ListUTXOs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ipcServiceClient) CreateTransaction(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*RawTransaction, error) {
+	out := new(RawTransaction)
+	err := c.cc.Invoke(ctx, IpcService_CreateTransaction_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +108,11 @@ func (c *ipcServiceClient) ListUTXOs(ctx context.Context, in *Empty, opts ...grp
 type IpcServiceServer interface {
 	// Alive pings the daemon and returns true if the daemon is alive
 	Status(context.Context, *Empty) (*StatusResponse, error)
+	Unlock(context.Context, *PasswordRequest) (*BoolResponse, error)
+	Shutdown(context.Context, *Empty) (*BoolResponse, error)
+	SetPassword(context.Context, *PasswordRequest) (*BoolResponse, error)
 	ListUTXOs(context.Context, *Empty) (*UTXOCollection, error)
+	CreateTransaction(context.Context, *CreateTransactionRequest) (*RawTransaction, error)
 	mustEmbedUnimplementedIpcServiceServer()
 }
 
@@ -75,8 +123,20 @@ type UnimplementedIpcServiceServer struct {
 func (UnimplementedIpcServiceServer) Status(context.Context, *Empty) (*StatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
+func (UnimplementedIpcServiceServer) Unlock(context.Context, *PasswordRequest) (*BoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Unlock not implemented")
+}
+func (UnimplementedIpcServiceServer) Shutdown(context.Context, *Empty) (*BoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedIpcServiceServer) SetPassword(context.Context, *PasswordRequest) (*BoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetPassword not implemented")
+}
 func (UnimplementedIpcServiceServer) ListUTXOs(context.Context, *Empty) (*UTXOCollection, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUTXOs not implemented")
+}
+func (UnimplementedIpcServiceServer) CreateTransaction(context.Context, *CreateTransactionRequest) (*RawTransaction, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTransaction not implemented")
 }
 func (UnimplementedIpcServiceServer) mustEmbedUnimplementedIpcServiceServer() {}
 
@@ -109,6 +169,60 @@ func _IpcService_Status_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_Unlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).Unlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_Unlock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).Unlock(ctx, req.(*PasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IpcService_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).Shutdown(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_Shutdown_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).Shutdown(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IpcService_SetPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).SetPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_SetPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).SetPassword(ctx, req.(*PasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IpcService_ListUTXOs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -127,6 +241,24 @@ func _IpcService_ListUTXOs_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_CreateTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).CreateTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_CreateTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).CreateTransaction(ctx, req.(*CreateTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IpcService_ServiceDesc is the grpc.ServiceDesc for IpcService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,8 +271,24 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IpcService_Status_Handler,
 		},
 		{
+			MethodName: "Unlock",
+			Handler:    _IpcService_Unlock_Handler,
+		},
+		{
+			MethodName: "Shutdown",
+			Handler:    _IpcService_Shutdown_Handler,
+		},
+		{
+			MethodName: "SetPassword",
+			Handler:    _IpcService_SetPassword_Handler,
+		},
+		{
 			MethodName: "ListUTXOs",
 			Handler:    _IpcService_ListUTXOs_Handler,
+		},
+		{
+			MethodName: "CreateTransaction",
+			Handler:    _IpcService_CreateTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
