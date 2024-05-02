@@ -41,9 +41,6 @@ func (d *Daemon) RunTests() {
 	if d.ClientBlindBit == nil {
 		panic("client not set")
 	}
-	if d.Network == nil {
-		panic("network not set")
-	}
 
 	d.Status = pb.Status_STATUS_SCANNING
 	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")

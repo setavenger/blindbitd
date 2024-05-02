@@ -15,7 +15,6 @@ import (
 
 type Daemon struct {
 	Status         pb.Status
-	Network        *chaincfg.Params
 	Password       []byte
 	Locked         bool
 	ReadyChan      chan struct{} // for the startup signal; either unlocking or setting password on initial startup
@@ -34,7 +33,6 @@ func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, cl
 	}
 	return &Daemon{
 		Status:         pb.Status_STATUS_UNSPECIFIED,
-		Network:        network,
 		Wallet:         wallet,
 		ClientBlindBit: clientBlindBit,
 		ClientElectrum: clientElectrum,
@@ -55,7 +53,8 @@ func (d *Daemon) Run() error {
 		return err
 	}
 
-	fmt.Println("Balance:", d.Wallet.FreeBalance())
+	logging.InfoLogger.Println("Balance:", d.Wallet.FreeBalance())
+
 	// todo add a recovery mechanism
 	err = d.ContinuousScan() // blocking function if it returns, it returns an error and Run is closed as well
 	return err
@@ -102,6 +101,7 @@ func (d *Daemon) Shutdown() error {
 	fmt.Println("Process shutting down")
 	err := database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return err
 	}
 	return nil

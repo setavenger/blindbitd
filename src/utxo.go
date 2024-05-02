@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/gobip352"
 )
@@ -25,6 +26,22 @@ func (u *OwnedUTXO) LabelPubKey() []byte {
 	} else {
 		return nil
 	}
+}
+
+func (u *OwnedUTXO) LabelComment(mapping LabelsMapping) *string {
+	if mapping == nil {
+		logging.ErrorLogger.Println("labels mapping is nil")
+		panic(errors.New("labels mapping is nil")) // todo change to return ""/nil after initial test phase
+	}
+	if u.Label == nil {
+		return nil
+	}
+	label, ok := mapping[u.Label.PubKey]
+	if !ok {
+		logging.ErrorLogger.Println("label not found")
+		return nil
+	}
+	return &label.Comment
 }
 
 type UtxoCollection []*OwnedUTXO

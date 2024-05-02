@@ -32,6 +32,7 @@ const (
 	IpcService_GetMnemonic_FullMethodName                   = "/ipc.IpcService/GetMnemonic"
 	IpcService_SetMnemonic_FullMethodName                   = "/ipc.IpcService/SetMnemonic"
 	IpcService_CreateNewWallet_FullMethodName               = "/ipc.IpcService/CreateNewWallet"
+	IpcService_ForceRescanFromHeight_FullMethodName         = "/ipc.IpcService/ForceRescanFromHeight"
 )
 
 // IpcServiceClient is the client API for IpcService service.
@@ -52,6 +53,7 @@ type IpcServiceClient interface {
 	GetMnemonic(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Mnemonic, error)
 	SetMnemonic(ctx context.Context, in *Mnemonic, opts ...grpc.CallOption) (*BoolResponse, error)
 	CreateNewWallet(ctx context.Context, in *NewWalletRequest, opts ...grpc.CallOption) (*Mnemonic, error)
+	ForceRescanFromHeight(ctx context.Context, in *RescanRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 }
 
 type ipcServiceClient struct {
@@ -179,6 +181,15 @@ func (c *ipcServiceClient) CreateNewWallet(ctx context.Context, in *NewWalletReq
 	return out, nil
 }
 
+func (c *ipcServiceClient) ForceRescanFromHeight(ctx context.Context, in *RescanRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, IpcService_ForceRescanFromHeight_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IpcServiceServer is the server API for IpcService service.
 // All implementations must embed UnimplementedIpcServiceServer
 // for forward compatibility
@@ -197,6 +208,7 @@ type IpcServiceServer interface {
 	GetMnemonic(context.Context, *Empty) (*Mnemonic, error)
 	SetMnemonic(context.Context, *Mnemonic) (*BoolResponse, error)
 	CreateNewWallet(context.Context, *NewWalletRequest) (*Mnemonic, error)
+	ForceRescanFromHeight(context.Context, *RescanRequest) (*BoolResponse, error)
 	mustEmbedUnimplementedIpcServiceServer()
 }
 
@@ -242,6 +254,9 @@ func (UnimplementedIpcServiceServer) SetMnemonic(context.Context, *Mnemonic) (*B
 }
 func (UnimplementedIpcServiceServer) CreateNewWallet(context.Context, *NewWalletRequest) (*Mnemonic, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateNewWallet not implemented")
+}
+func (UnimplementedIpcServiceServer) ForceRescanFromHeight(context.Context, *RescanRequest) (*BoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ForceRescanFromHeight not implemented")
 }
 func (UnimplementedIpcServiceServer) mustEmbedUnimplementedIpcServiceServer() {}
 
@@ -490,6 +505,24 @@ func _IpcService_CreateNewWallet_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_ForceRescanFromHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RescanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).ForceRescanFromHeight(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_ForceRescanFromHeight_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).ForceRescanFromHeight(ctx, req.(*RescanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IpcService_ServiceDesc is the grpc.ServiceDesc for IpcService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -548,6 +581,10 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateNewWallet",
 			Handler:    _IpcService_CreateNewWallet_Handler,
+		},
+		{
+			MethodName: "ForceRescanFromHeight",
+			Handler:    _IpcService_ForceRescanFromHeight_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

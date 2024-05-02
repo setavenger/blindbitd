@@ -25,7 +25,6 @@ type Wallet struct {
 	Labels         []*gobip352.Label `json:"labels"`       // Labels contains all labels except for the change label
 	ChangeLabel    *gobip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
 	NextLabelM     uint32            `json:"next_label_m"` // NextLabelM indicates which m will be used to derive the next label
-	DustLimit      uint64            `json:"dust_limit"`   // todo allow setting this
 	PubKeysToWatch [][32]byte        `json:"pub_keys_to_watch"`
 	Addresses      Addresses         `json:"addresses"`
 	LabelsMapping  LabelsMapping     `json:"labels_mapping"` // never show LabelsMapping addresses to the user - it includes the change label which should NEVER be shown to normal users

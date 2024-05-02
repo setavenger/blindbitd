@@ -6,7 +6,6 @@ import (
 )
 
 func WriteToDB(path string, dataStruct Serialiser, pass []byte) error {
-
 	data, err := dataStruct.Serialise()
 	if err != nil {
 		logging.ErrorLogger.Println(err)

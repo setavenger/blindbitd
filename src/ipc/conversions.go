@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func convertWalletUTXOs(utxos []*src.OwnedUTXO) []*pb.OwnedUTXO {
+func convertWalletUTXOs(utxos []*src.OwnedUTXO, mapping src.LabelsMapping) []*pb.OwnedUTXO {
 	var result []*pb.OwnedUTXO
 
 	for _, utxo := range utxos {
@@ -18,7 +18,7 @@ func convertWalletUTXOs(utxos []*src.OwnedUTXO) []*pb.OwnedUTXO {
 			PubKey:             utils.CopyBytes(utxo.PubKey[:]),
 			TimestampConfirmed: &timestamppb.Timestamp{Seconds: int64(utxo.Timestamp)},
 			UtxoState:          convertState(utxo.State),
-			Label:              utxo.LabelPubKey(),
+			Label:              utxo.LabelComment(mapping),
 		})
 	}
 

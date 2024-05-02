@@ -70,16 +70,21 @@ func LoadConfigs(pathToConfig string) {
 	}
 
 	/* set defaults */
-	viper.SetDefault("blindbit_server", "http://localhost:8000")
-	viper.SetDefault("electrum_server", "localhost:50000")
-	viper.SetDefault("minchange_amount", 1000)
-	viper.SetDefault("chain", "signet")
+	// network
+	viper.SetDefault("network.blindbit_server", "http://localhost:8000")
+	viper.SetDefault("network.electrum_server", "localhost:50000")
+	viper.SetDefault("network.chain", "signet")
+
+	// wallet
+	viper.SetDefault("wallet.minchange_amount", 1000)
+	viper.SetDefault("wallet.dust_limit", 1000)
 
 	/* read and set config variables */
 	BlindBitServerAddress = viper.GetString("network.blindbit_server")
 	ElectrumServerAddress = viper.GetString("network.electrum_server")
 
 	MinChangeAmount = viper.GetInt64("wallet.minchange_amount")
+	DustLimit = viper.GetUint64("wallet.dust_limit")
 
 	// extract the chain data and set the params
 	chain := viper.GetString("network.chain")

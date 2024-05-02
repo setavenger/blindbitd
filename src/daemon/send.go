@@ -50,6 +50,7 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 		MinChangeAmount: btcutil.Amount(src.MinChangeAmount),
 	}.CoinSelect(btcutil.Amount(sumAllOutputs+fee), allPossibleCoins)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		// ErrCoinsNoSelectionAvailable
 		return nil, err
 	}
@@ -62,6 +63,7 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 			vin.SecretKey = &fullVinSecretKey
 			vins[i] = vin
 		} else {
+			logging.DebugLogger.Printf("vin: %+v\n", vin)
 			panic("coin was not a vin")
 		}
 	}
@@ -92,7 +94,7 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 	}
 
 	// extract the ScriptPubKeys of the SP recipients with the selected txInputs
-	recipients, err = ParseRecipients(recipients, vins, d.Network)
+	recipients, err = ParseRecipients(recipients, vins, src.ChainParams)
 	if err != nil {
 		return nil, err
 	}

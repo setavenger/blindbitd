@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/blindbitd/src/utils"
 	"google.golang.org/grpc"
@@ -28,6 +29,9 @@ func (s *Server) Status(_ context.Context, _ *pb.Empty) (*pb.StatusResponse, err
 }
 
 func (s *Server) Unlock(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResponse, error) {
+	if !s.Daemon.Locked {
+		return &pb.BoolResponse{Success: false, Error: "daemon already unlocked"}, errors.New("daemon already unlocked")
+	}
 
 	var response pb.BoolResponse
 
@@ -102,7 +106,7 @@ func (s *Server) ListUTXOs(_ context.Context, _ *pb.Empty) (*pb.UTXOCollection, 
 	if s.Daemon.Locked {
 		return nil, src.ErrDaemonIsLocked
 	}
-	return &pb.UTXOCollection{Utxos: convertWalletUTXOs(s.Daemon.Wallet.UTXOs)}, nil
+	return &pb.UTXOCollection{Utxos: convertWalletUTXOs(s.Daemon.Wallet.UTXOs, s.Daemon.Wallet.LabelsMapping)}, nil
 }
 
 func (s *Server) ListAddresses(_ context.Context, _ *pb.Empty) (*pb.AddressesCollection, error) {
@@ -146,6 +150,7 @@ func (s *Server) CreateTransaction(_ context.Context, in *pb.CreateTransactionRe
 	// todo UTXOs have to be marked as spent after creating the transaction; broadcast and mark as spent
 	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 	return &pb.RawTransaction{RawTx: signedTx}, nil
@@ -192,6 +197,24 @@ func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*p
 	s.Daemon.Status = pb.Status_STATUS_RUNNING
 
 	return &pb.Mnemonic{Mnemonic: s.Daemon.Mnemonic}, nil
+}
+
+func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) (*pb.BoolResponse, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	var response pb.BoolResponse
+
+	err := s.Daemon.ForceSyncFrom(in.GetHeight())
+	if err != nil {
+		response.Success = false
+		response.Error = err.Error()
+		return &response, err
+	}
+
+	response.Success = true
+
+	return &response, nil
 }
 
 func (s *Server) Start() error {
