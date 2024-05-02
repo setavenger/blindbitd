@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"bytes"
+	"context"
+	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -13,9 +15,9 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/utils"
 	"github.com/setavenger/gobip352"
-	"log"
 )
 
 const ExtraDataAmountKey = "amount"
@@ -31,7 +33,8 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 	}
 
 	var allPossibleVins []gobip352.Vin
-	for _, utxo := range d.Wallet.UTXOs {
+	// only use the utxos that are unspent, unconfirmed, unspent or others should not be used
+	for _, utxo := range d.Wallet.GetFreeUTXOs() {
 		vin := src.ConvertOwnedUTXOIntoVin(utxo)
 		allPossibleVins = append(allPossibleVins, vin)
 	}
@@ -83,7 +86,7 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 	default:
 		// change exists, and it is greater than the MinChangeAmount
 		recipients = append(recipients, &src.Recipient{
-			Address: d.ChangeLabel.Address,
+			Address: d.Wallet.ChangeLabel.Address,
 			Amount:  changeAmount,
 		})
 	}
@@ -153,11 +156,13 @@ func ParseRecipients(recipients []*src.Recipient, vins []*gobip352.Vin, chainPar
 		if !isSP {
 			address, err := btcutil.DecodeAddress(recipient.Address, chainParam)
 			if err != nil {
-				log.Fatalf("Failed to decode address: %v", err)
+				logging.ErrorLogger.Printf("Failed to decode address: %v", err)
+				return nil, err
 			}
 			scriptPubKey, err := txscript.PayToAddrScript(address)
 			if err != nil {
-				log.Fatalf("Failed to create scriptPubKey: %v", err)
+				logging.ErrorLogger.Printf("Failed to create scriptPubKey: %v", err)
+				return nil, err
 			}
 			recipient.PkScript = scriptPubKey
 
@@ -214,7 +219,6 @@ func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psb
 		txOutputs = append(txOutputs, wire.NewTxOut(recipient.Amount, recipient.PkScript))
 	}
 
-	//var psbtInputs []psbt.PInput
 	var txInputs []*wire.TxIn
 	for _, vin := range vins {
 		hash, err := chainhash.NewHash(gobip352.ReverseBytesCopy(vin.Txid[:]))
@@ -223,12 +227,6 @@ func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psb
 		}
 		prevOut := wire.NewOutPoint(hash, vin.Vout)
 		txInputs = append(txInputs, wire.NewTxIn(prevOut, nil, nil))
-
-		//psbtInput := psbt.PInput{
-		//	WitnessUtxo: wire.NewTxOut(int64(vin.Amount), vin.ScriptPubKey),
-		//	SighashType: txscript.SigHashDefault,
-		//}
-		//psbtInputs = append(psbtInputs, psbtInput)
 	}
 
 	unsignedTx := &wire.MsgTx{
@@ -239,8 +237,6 @@ func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psb
 
 	packet := &psbt.Packet{
 		UnsignedTx: txsort.Sort(unsignedTx),
-		//Inputs:     psbtInputs,
-		//Outputs:    []psbt.POutput{},
 	}
 
 	return packet, nil
@@ -332,4 +328,14 @@ func ConvertSPRecipient(recipient *gobip352.Recipient) *src.Recipient {
 		Amount:   int64(recipient.Amount),
 		Data:     recipient.Data,
 	}
+}
+
+// BroadcastTx
+// broadcasts a transaction and returns the txid
+func (d *Daemon) BroadcastTx(rawTx []byte) (string, error) {
+	txid, err := d.ClientElectrum.BroadcastTransaction(context.Background(), hex.EncodeToString(rawTx))
+	if err != nil {
+		return "", err
+	}
+	return txid, nil
 }

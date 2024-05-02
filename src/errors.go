@@ -23,4 +23,6 @@ var (
 	ErrNoMatchingVinFoundForTxInput = errors.New("there was no matching vin for the given tx input, should not happen")
 
 	ErrDaemonNotSet = errors.New("daemon is not initialised")
+
+	ErrDaemonIsLocked = errors.New("daemon is locked")
 )

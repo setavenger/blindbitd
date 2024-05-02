@@ -2,10 +2,11 @@ package ipc
 
 import (
 	"context"
+	"errors"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
-	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/pb"
+	"github.com/setavenger/blindbitd/src/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
@@ -29,18 +30,21 @@ func (s *Server) Status(_ context.Context, _ *pb.Empty) (*pb.StatusResponse, err
 func (s *Server) Unlock(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResponse, error) {
 
 	var response pb.BoolResponse
-	var wallet src.Wallet
 
 	s.Daemon.Status = pb.Status_STATUS_STARTING
 	s.Daemon.Password = []byte(in.Password)
-
-	err := database.ReadFromDB(src.PathDbWallet, &wallet, s.Daemon.Password)
-	if err != nil {
+	if utils.CheckIfFileExists(src.PathToKeys) {
+		err := s.Daemon.LoadDataFromDB()
+		if err != nil {
+			response.Success = false
+			response.Error = err.Error()
+			return &response, err
+		}
+	} else {
 		response.Success = false
-		response.Error = err.Error()
-		return &response, err
+		response.Error = "keys not found"
+		return &response, errors.New(response.Error)
 	}
-	s.Daemon.Wallet = &wallet
 
 	response.Success = true
 	response.Error = ""
@@ -52,7 +56,16 @@ func (s *Server) Unlock(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResp
 }
 
 func (s *Server) SetPassword(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResponse, error) {
+	if in.Password == "" {
+		return &pb.BoolResponse{Success: false, Error: "password can't be empty"}, errors.New("password can't be empty")
+	}
+
 	var response pb.BoolResponse
+	if s.Daemon.Password != nil {
+		response.Success = false
+		response.Error = "already set"
+		return &response, nil
+	}
 	s.Daemon.Password = []byte(in.Password)
 
 	response.Success = true
@@ -65,7 +78,9 @@ func (s *Server) SetPassword(_ context.Context, in *pb.PasswordRequest) (*pb.Boo
 }
 
 func (s *Server) Shutdown(_ context.Context, _ *pb.Empty) (*pb.BoolResponse, error) {
-
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
 	var response pb.BoolResponse
 
 	s.Daemon.Status = pb.Status_STATUS_SHUTTING_DOWN
@@ -78,21 +93,105 @@ func (s *Server) Shutdown(_ context.Context, _ *pb.Empty) (*pb.BoolResponse, err
 	}
 
 	response.Success = true
+	s.Daemon.ShutdownChan <- struct{}{}
 
 	return &response, nil
 }
 
 func (s *Server) ListUTXOs(_ context.Context, _ *pb.Empty) (*pb.UTXOCollection, error) {
-	return &pb.UTXOCollection{Utxos: convertWalletUTXOs(s.Daemon.UTXOs)}, nil
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	return &pb.UTXOCollection{Utxos: convertWalletUTXOs(s.Daemon.Wallet.UTXOs)}, nil
+}
+
+func (s *Server) ListAddresses(_ context.Context, _ *pb.Empty) (*pb.AddressesCollection, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+
+	// todo return addresses sorted by m and standard should be first
+	var addressCollection pb.AddressesCollection
+	walletAddresses, err := s.Daemon.Wallet.SortedAddresses()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, address := range walletAddresses {
+		addressCollection.Addresses = append(addressCollection.Addresses, &pb.Address{
+			Address: address.Address,
+			Comment: address.Comment,
+		})
+	}
+	return &addressCollection, nil
+}
+
+func (s *Server) CreateNewLabel(_ context.Context, in *pb.NewLabelRequest) (*pb.Address, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	label, err := s.Daemon.Wallet.GenerateNewLabel(in.Comment)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Address{Address: label.Address, Comment: label.Comment}, nil
 }
 
 func (s *Server) CreateTransaction(_ context.Context, in *pb.CreateTransactionRequest) (*pb.RawTransaction, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
 	recipients := convertToRecipients(in.Recipients)
+	// todo UTXOs have to be marked as spent after creating the transaction; broadcast and mark as spent
 	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.RawTransaction{RawTx: signedTx}, nil
+}
+
+func (s *Server) CreateTransactionAndBroadcast(_ context.Context, in *pb.CreateTransactionRequest) (*pb.NewTransaction, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	recipients := convertToRecipients(in.Recipients)
+	// todo UTXOs have to be marked as spent after creating the transaction; broadcast and mark as spent
+	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate)
+	if err != nil {
+		return nil, err
+	}
+	txid, err := s.Daemon.BroadcastTx(signedTx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.NewTransaction{Txid: txid}, nil
+}
+
+func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*pb.Mnemonic, error) {
+	// todo add checks that existing wallet is not overridden
+	// check if a keys file already exists
+	if utils.CheckIfFileExists(src.PathToKeys) {
+		return nil, errors.New("keys file already exists")
+	}
+	if utils.CheckIfFileExists(src.PathDbWallet) {
+		return nil, errors.New("wallet file already exists")
+	}
+
+	if in.EncryptionPassword == "" {
+		return nil, errors.New("encryption password can't be empty")
+	}
+	s.Daemon.Password = []byte(in.EncryptionPassword)
+
+	err := s.Daemon.CreateNewKeys(in.SeedPassphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	s.Daemon.ReadyChan <- struct{}{}
+	s.Daemon.Status = pb.Status_STATUS_RUNNING
+
+	return &pb.Mnemonic{Mnemonic: s.Daemon.Mnemonic}, nil
 }
 
 func (s *Server) Start() error {
@@ -111,6 +210,8 @@ func (s *Server) Start() error {
 
 	sGRpc := grpc.NewServer()
 	reflection.Register(sGRpc)
+
+	//sGRpc.GracefulStop() //todo this via channel that is fed from shutdown
 
 	pb.RegisterIpcServiceServer(sGRpc, s)
 	if err = sGRpc.Serve(listener); err != nil {

@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func convertWalletUTXOs(utxos []src.OwnedUTXO) []*pb.OwnedUTXO {
+func convertWalletUTXOs(utxos []*src.OwnedUTXO) []*pb.OwnedUTXO {
 	var result []*pb.OwnedUTXO
 
 	for _, utxo := range utxos {
@@ -33,6 +33,8 @@ func convertState(state src.UTXOState) pb.UTXOState {
 		return pb.UTXOState_UNSPENT
 	case src.StateSpent:
 		return pb.UTXOState_SPENT
+	case src.StateUnconfirmedSpent:
+		return pb.UTXOState_SPENT_UNCONFIRMED
 	default:
 		return pb.UTXOState_UNKNOWN
 	}

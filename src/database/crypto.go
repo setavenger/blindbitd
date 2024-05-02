@@ -9,7 +9,7 @@ import (
 	"fmt"
 )
 
-// todo rename functions from text st
+// todo rename functions from text to more accurate naming
 
 func ConvertPassphraseToKey(pass []byte) []byte {
 	hash := sha256.Sum256(pass)
@@ -31,7 +31,7 @@ func DecryptWithPass(encryptedData, pass []byte) ([]byte, error) {
 func Encrypt(message []byte, key []byte) ([]byte, error) {
 	// block size is 16 bytes
 	iv := make([]byte, 16)
-	// can probably use a less expensive lib since IV has to only be unique; not perfectly random; math/rand?
+
 	if _, err := rand.Read(iv); err != nil {
 		return nil, fmt.Errorf("error creating initization vector: %w", err)
 	}

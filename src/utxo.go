@@ -1,7 +1,10 @@
 package src
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/gobip352"
 )
 
@@ -24,7 +27,7 @@ func (u *OwnedUTXO) LabelPubKey() []byte {
 	}
 }
 
-type UtxoCollection []OwnedUTXO
+type UtxoCollection []*OwnedUTXO
 
 func (c *UtxoCollection) Serialise() ([]byte, error) {
 	return json.Marshal(c)
@@ -34,8 +37,24 @@ func (c *UtxoCollection) DeSerialise(data []byte) error {
 	// either write directly or do some extra manipulation
 	err := json.Unmarshal(data, c)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return err
 	}
 
 	return nil
+}
+
+func (u *OwnedUTXO) GetKey() ([36]byte, error) {
+	var buf bytes.Buffer
+	buf.Write(u.Txid[:])
+	err := binary.Write(&buf, binary.BigEndian, u.Vout)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return [36]byte{}, err
+	}
+
+	var result [36]byte
+	copy(result[:], buf.Bytes())
+
+	return result, nil
 }

@@ -1,125 +1,150 @@
 package daemon
 
 import (
-	"encoding/hex"
+	"context"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/checksum0/go-electrum/electrum"
 	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/database"
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/blindbitd/src/pb"
-	"github.com/setavenger/gobip352"
-	"os"
+	"github.com/setavenger/blindbitd/src/utils"
 )
 
 type Daemon struct {
-	Status    pb.Status
-	Network   *chaincfg.Params
-	Password  []byte
-	Locked    bool
-	ReadyChan chan struct{} // for the startup signal; either unlocking or setting password on initial startup
-	*src.Wallet
-	*networking.Client
+	Status         pb.Status
+	Network        *chaincfg.Params
+	Password       []byte
+	Locked         bool
+	ReadyChan      chan struct{} // for the startup signal; either unlocking or setting password on initial startup
+	ShutdownChan   chan struct{}
+	Mnemonic       string
+	ClientElectrum *electrum.Client
+	ClientBlindBit *networking.ClientBlindBit
+	Wallet         *src.Wallet
+	NewBlockChan   <-chan *electrum.SubscribeHeadersResult
 }
 
-func NewDaemon(wallet *src.Wallet, client *networking.Client, network *chaincfg.Params) *Daemon {
-	return &Daemon{
-		Status:    pb.Status_STATUS_UNSPECIFIED,
-		Network:   network,
-		Wallet:    wallet,
-		Client:    client,
-		Locked:    true,
-		ReadyChan: make(chan struct{}),
+func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client, network *chaincfg.Params) *Daemon {
+	channel, err := clientElectrum.SubscribeHeaders(context.Background())
+	if err != nil {
+		panic(err)
 	}
+	return &Daemon{
+		Status:         pb.Status_STATUS_UNSPECIFIED,
+		Network:        network,
+		Wallet:         wallet,
+		ClientBlindBit: clientBlindBit,
+		ClientElectrum: clientElectrum,
+		Locked:         true,
+		ReadyChan:      make(chan struct{}),
+		ShutdownChan:   make(chan struct{}),
+		NewBlockChan:   channel,
+	}
+}
+
+func (d *Daemon) Run() error {
+	d.Status = pb.Status_STATUS_RUNNING
+
+	// first we sync up and then we scan continuously
+	err := d.SyncToTip(0)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	fmt.Println("Balance:", d.Wallet.FreeBalance())
+	// todo add a recovery mechanism
+	err = d.ContinuousScan() // blocking function if it returns, it returns an error and Run is closed as well
+	return err
 }
 
 var exampleLabelComments = [5]string{"Hello", "Donations for project", "Family and Friends", "Deal 1", "Deal 2"}
 
-func (d *Daemon) Run() {
-	if d.Wallet == nil {
-		panic("wallet not set")
-	}
-	if d.Client == nil {
-		panic("client not set")
-	}
-	if d.Network == nil {
-		panic("network not set")
-	}
-
-	d.Status = pb.Status_STATUS_SCANNING
-	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")
-	spendBytes, _ := hex.DecodeString("c88567742d5019d7ccc81f6e82cef8ef01997a6a3761cc9166036b580549539b")
-
-	d.Wallet.LoadWalletFromKeys(gobip352.ConvertToFixedLength32(scanBytes), gobip352.ConvertToFixedLength32(spendBytes))
-	address, err := d.GenerateAddress()
+// LoadDataFromDB
+// Load keys and wallet data from disk
+func (d *Daemon) LoadDataFromDB() error {
+	var keys src.Keys
+	d.Status = pb.Status_STATUS_STARTING
+	err := database.ReadFromDB(src.PathToKeys, &keys, d.Password)
 	if err != nil {
-		panic(err)
-	}
-	_, err = d.Wallet.GenerateChangeLabel()
-	if err != nil {
-		panic(err)
+		logging.ErrorLogger.Println(err)
+		return err
 	}
 
-	fmt.Println(address)
-	for _, labelComment := range exampleLabelComments {
-		address, err = d.GenerateNewLabel(labelComment)
+	var wallet src.Wallet
+
+	// load keys in any case other data will be read in next step if available
+	wallet.LoadKeys(keys.ScanSecretKey, keys.SpendSecretKey)
+	err = wallet.CheckAndInitialiseFields()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	if utils.CheckIfFileExists(src.PathToKeys) {
+		err = database.ReadFromDB(src.PathDbWallet, &wallet, d.Password)
 		if err != nil {
-			panic(err)
-		}
-		fmt.Println(address)
-	}
-
-	// 0 sets fetch to tip?
-	err = d.SyncToTip(0)
-	if err != nil {
-		panic(err)
-	}
-
-	var balance uint64
-
-	if len(d.Wallet.UTXOs) > 0 {
-		//fmt.Printf("%+v\n", d.Wallet.UTXOs)
-		fmt.Println()
-		for _, utxo := range d.Wallet.UTXOs {
-			if utxo.State == src.StateSpent {
-				continue
-			}
-			balance += utxo.Amount
-			baseString := fmt.Sprintf("%x:%04d %016d - time: %d", utxo.Txid, utxo.Vout, utxo.Amount, utxo.Timestamp)
-			if utxo.Label == nil {
-				fmt.Printf("%s - base\n", baseString)
-			} else {
-				fmt.Printf("%s - label-%d: %s\n", baseString, d.Wallet.LabelsMapping[utxo.Label.PubKey].M, d.Wallet.LabelsMapping[utxo.Label.PubKey].Comment)
-			}
+			logging.ErrorLogger.Println(err)
+			return err
 		}
 	}
 
-	fmt.Println()
+	d.Wallet = &wallet
 
-	fmt.Printf("Balance: %d\n", balance)
-	signedTx, err := d.SendToRecipients([]*src.Recipient{
-		{
-			Address:    "tsp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7xqh6yy9ncjnqhqxazct0fzh98w7lpkm5fvlepqec2yy0sxlq4j6ccc9c679n",
-			Amount:     int64(d.Wallet.UTXOs[0].Amount / 2),
-			Annotation: "just casually paying myself",
-		},
-		{
-			// this the 5th label
-			Address:    "tsp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7xqml0tkdw0vxkg3yqkxfyxgqfa9s0znxagejzpmuljcpwa3700mjaqw8cvja",
-			Amount:     int64(d.Wallet.UTXOs[0].Amount / 4),
-			Annotation: "paying myself on a label",
-		},
-	}, 10_000)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("%x\n", signedTx)
-	d.Status = pb.Status_STATUS_RUNNING
+	return nil
 }
 
 func (d *Daemon) Shutdown() error {
 	// todo save all data to a files
-	// todo send kill signal to main function - possibly also to the grpc listener
-	fmt.Println("Process shut down")
-	os.Exit(0)
+	fmt.Println("Process shutting down")
+	err := database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateNewKeys
+// WARNING: Must only be called if no other wallet is present. Will overwrite the old keys.
+func (d *Daemon) CreateNewKeys(seedPassphrase string) error {
+
+	var chainTip uint64
+	chainTip, err := d.ClientBlindBit.GetChainTip()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	d.Wallet = src.NewWallet(chainTip)
+	var newKeys *src.Keys
+	newKeys, err = src.CreateNewKeys(seedPassphrase)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+	d.Wallet.LoadKeys(newKeys.ScanSecretKey, newKeys.SpendSecretKey)
+	d.Mnemonic = newKeys.Mnemonic
+	err = database.WriteToDB(src.PathToKeys, newKeys, d.Password)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	// setup up the other important stuff needed
+	err = d.Wallet.CheckAndInitialiseFields()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	_, err = d.Wallet.GenerateAddress()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
 	return nil
 }

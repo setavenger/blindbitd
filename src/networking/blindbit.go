@@ -15,7 +15,7 @@ import (
 Most of this will probably be removed in favour of binary encodings (proto buffs)
 */
 
-type Client struct {
+type ClientBlindBit struct {
 	BaseUrl string
 }
 
@@ -37,7 +37,7 @@ type UTXOServed struct {
 	Spent        bool     `json:"spent"`
 }
 
-func (c Client) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
+func (c ClientBlindBit) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
 	url := fmt.Sprintf("%s/tweaks/%d", c.BaseUrl, blockHeight)
 	if dustLimit > 0 {
 		url = fmt.Sprintf("%s?dustLimit=%d", url, dustLimit)
@@ -86,7 +86,7 @@ func (c Client) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
 	return bytesData, nil
 }
 
-func (c Client) GetChainTip() (uint64, error) {
+func (c ClientBlindBit) GetChainTip() (uint64, error) {
 	url := fmt.Sprintf("%s/block-height", c.BaseUrl)
 
 	// HTTP GET request
@@ -114,7 +114,7 @@ func (c Client) GetChainTip() (uint64, error) {
 	return data.BlockHeight, err
 }
 
-func (c Client) GetFilter(blockHeight uint64) (*Filter, error) {
+func (c ClientBlindBit) GetFilter(blockHeight uint64) (*Filter, error) {
 	url := fmt.Sprintf("%s/filter/%d", c.BaseUrl, blockHeight)
 
 	// HTTP GET request
@@ -161,7 +161,7 @@ func (c Client) GetFilter(blockHeight uint64) (*Filter, error) {
 	return filter, err
 }
 
-func (c Client) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
+func (c ClientBlindBit) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 	url := fmt.Sprintf("%s/utxos/%d", c.BaseUrl, blockHeight)
 
 	// HTTP GET request
