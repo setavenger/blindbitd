@@ -1,7 +1,7 @@
-# BlindBitd (not functional yet)
+# BlindBitd (wip)
 
-Receive and simple send functions but not integrated and not functional yet.
-This is the daemon for the BlindBit Wallet.
+Receive and send functionality. This is the daemon for the BlindBit Wallet. The daemon can be controlled with [BlindBit-cli](https://github.com/setavenger/BlindBit-cli). Still in early testing, only use with funds you can afford to loose.
+
 
 ## Todo
 
@@ -32,8 +32,6 @@ This is the daemon for the BlindBit Wallet.
 - [ ] Don't always add change in coin selector (see todo)
 
 ## IPC
-
-### Todos
 
 - [x] Create New label
     - Give comment
