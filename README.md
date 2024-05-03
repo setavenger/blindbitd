@@ -13,6 +13,7 @@ This is the daemon for the BlindBit Wallet.
 - [ ] Add Transaction History
 - [x] Mark UTXOs as spent (or similar) if used for a transaction
 - [ ] Sometimes unlock does not work on first try, needs a restart of the daemon
+- [ ] Add gRPC credentials
 
 ### Priority 2
 

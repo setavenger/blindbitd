@@ -28,7 +28,15 @@ func (s *Server) Status(_ context.Context, _ *pb.Empty) (*pb.StatusResponse, err
 	return &pb.StatusResponse{Status: s.Daemon.Status}, nil
 }
 
+func (s *Server) SyncHeight(_ context.Context, _ *pb.Empty) (*pb.SyncHeightResponse, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	return &pb.SyncHeightResponse{Height: s.Daemon.Wallet.LastScanHeight}, nil
+}
+
 func (s *Server) Unlock(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResponse, error) {
+	// todo remove BoolResponse - just returning an error from server overrides this
 	if !s.Daemon.Locked {
 		return &pb.BoolResponse{Success: false, Error: "daemon already unlocked"}, errors.New("daemon already unlocked")
 	}
@@ -229,6 +237,13 @@ func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) 
 	response.Success = true
 
 	return &response, nil
+}
+
+func (s *Server) GetMnemonic(_ context.Context, _ *pb.Empty) (*pb.Mnemonic, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	return &pb.Mnemonic{Mnemonic: s.Daemon.Mnemonic}, nil
 }
 
 func (s *Server) Start() error {

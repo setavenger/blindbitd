@@ -88,9 +88,10 @@ func main() {
 		}
 	} else {
 		//  does *not* exist
-		logging.InfoLogger.Println("Create new wallet...")
+		d.Status = pb.Status_STATUS_NO_WALLET
+		logging.InfoLogger.Println("Please create new wallet...")
 		select {
-		// Wait here until daemon is unlocked
+		// Wait here until wallet is set up
 		case <-d.ReadyChan:
 			logging.InfoLogger.Println("Daemon is ready...")
 			d.Locked = false
