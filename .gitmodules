@@ -1,0 +1,3 @@
+[submodule "src/BlindBit-Protos"]
+	path = src/BlindBit-Protos
+	url = https://github.com/setavenger/BlindBit-Protos.git

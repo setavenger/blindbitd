@@ -1,6 +1,8 @@
-package src
+package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/setavenger/gobip352"
 )
@@ -27,12 +29,16 @@ func IsSilentPaymentAddress(address string) bool {
 	return false
 }
 
-// ConvertSPRecipient converts a gobip352.Recipient to a Recipient native to this program
-func ConvertSPRecipient(recipient *gobip352.Recipient) *Recipient {
-	return &Recipient{
-		Address:    recipient.SilentPaymentAddress,
-		PkScript:   append([]byte{0x51, 0x20}, recipient.Output[:]...),
-		Amount:     int64(recipient.Amount),
-		Annotation: recipient.Data,
-	}
+func CopyBytes(bytes []byte) []byte {
+	result := make([]byte, len(bytes))
+	copy(result, bytes)
+	return result
+}
+
+// ConvertPubKeyToScriptHash
+// Converts the given taproot pubKey to a scriptHash which can be checked with electrumX
+func ConvertPubKeyToScriptHash(pubKey [32]byte) string {
+	data := append([]byte{0x51, 0x20}, pubKey[:]...)
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(gobip352.ReverseBytesCopy(hash[:]))
 }

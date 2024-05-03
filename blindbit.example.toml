@@ -1,0 +1,21 @@
+[network]
+# Indexing server for silent payments that follows the blindbit standard
+# Default: "http://localhost:8000"
+blindbit_server = "http://localhost:8000"
+# Electrum server to connect to
+# Default: "localhost:50000"
+electrum_server = "localhost:50000"
+# Defines on which chain the wallet runs. Allowed values: main, test, signet, regtest.
+# Default: signet
+chain = "signet"
+
+
+[wallet]
+# The wallet will never create change that is smaller than this value. Value has to be in sats.
+# Default: 1000
+minchange_amount = 1000
+# The wallet will only request tweaks for transactions where the utxo with the largest value exceeds the `dust_limit` value.
+# Note that if you receive funds below this threshold you might not find them. Rescan without a dustlimit to find those.
+# default = 1000
+dust_limit = 0
+
