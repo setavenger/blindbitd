@@ -29,6 +29,7 @@ const (
 	IpcService_CreateNewLabel_FullMethodName                = "/ipc.IpcService/CreateNewLabel"
 	IpcService_CreateTransaction_FullMethodName             = "/ipc.IpcService/CreateTransaction"
 	IpcService_CreateTransactionAndBroadcast_FullMethodName = "/ipc.IpcService/CreateTransactionAndBroadcast"
+	IpcService_BroadcastRawTx_FullMethodName                = "/ipc.IpcService/BroadcastRawTx"
 	IpcService_GetMnemonic_FullMethodName                   = "/ipc.IpcService/GetMnemonic"
 	IpcService_SetMnemonic_FullMethodName                   = "/ipc.IpcService/SetMnemonic"
 	IpcService_CreateNewWallet_FullMethodName               = "/ipc.IpcService/CreateNewWallet"
@@ -50,6 +51,7 @@ type IpcServiceClient interface {
 	CreateNewLabel(ctx context.Context, in *NewLabelRequest, opts ...grpc.CallOption) (*Address, error)
 	CreateTransaction(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*RawTransaction, error)
 	CreateTransactionAndBroadcast(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*NewTransaction, error)
+	BroadcastRawTx(ctx context.Context, in *RawTransaction, opts ...grpc.CallOption) (*NewTransaction, error)
 	GetMnemonic(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Mnemonic, error)
 	SetMnemonic(ctx context.Context, in *Mnemonic, opts ...grpc.CallOption) (*BoolResponse, error)
 	CreateNewWallet(ctx context.Context, in *NewWalletRequest, opts ...grpc.CallOption) (*Mnemonic, error)
@@ -154,6 +156,15 @@ func (c *ipcServiceClient) CreateTransactionAndBroadcast(ctx context.Context, in
 	return out, nil
 }
 
+func (c *ipcServiceClient) BroadcastRawTx(ctx context.Context, in *RawTransaction, opts ...grpc.CallOption) (*NewTransaction, error) {
+	out := new(NewTransaction)
+	err := c.cc.Invoke(ctx, IpcService_BroadcastRawTx_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ipcServiceClient) GetMnemonic(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Mnemonic, error) {
 	out := new(Mnemonic)
 	err := c.cc.Invoke(ctx, IpcService_GetMnemonic_FullMethodName, in, out, opts...)
@@ -205,6 +216,7 @@ type IpcServiceServer interface {
 	CreateNewLabel(context.Context, *NewLabelRequest) (*Address, error)
 	CreateTransaction(context.Context, *CreateTransactionRequest) (*RawTransaction, error)
 	CreateTransactionAndBroadcast(context.Context, *CreateTransactionRequest) (*NewTransaction, error)
+	BroadcastRawTx(context.Context, *RawTransaction) (*NewTransaction, error)
 	GetMnemonic(context.Context, *Empty) (*Mnemonic, error)
 	SetMnemonic(context.Context, *Mnemonic) (*BoolResponse, error)
 	CreateNewWallet(context.Context, *NewWalletRequest) (*Mnemonic, error)
@@ -245,6 +257,9 @@ func (UnimplementedIpcServiceServer) CreateTransaction(context.Context, *CreateT
 }
 func (UnimplementedIpcServiceServer) CreateTransactionAndBroadcast(context.Context, *CreateTransactionRequest) (*NewTransaction, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTransactionAndBroadcast not implemented")
+}
+func (UnimplementedIpcServiceServer) BroadcastRawTx(context.Context, *RawTransaction) (*NewTransaction, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BroadcastRawTx not implemented")
 }
 func (UnimplementedIpcServiceServer) GetMnemonic(context.Context, *Empty) (*Mnemonic, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMnemonic not implemented")
@@ -451,6 +466,24 @@ func _IpcService_CreateTransactionAndBroadcast_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_BroadcastRawTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RawTransaction)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).BroadcastRawTx(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_BroadcastRawTx_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).BroadcastRawTx(ctx, req.(*RawTransaction))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IpcService_GetMnemonic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -569,6 +602,10 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateTransactionAndBroadcast",
 			Handler:    _IpcService_CreateTransactionAndBroadcast_Handler,
+		},
+		{
+			MethodName: "BroadcastRawTx",
+			Handler:    _IpcService_BroadcastRawTx_Handler,
 		},
 		{
 			MethodName: "GetMnemonic",

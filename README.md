@@ -7,7 +7,8 @@ This is the daemon for the BlindBit Wallet.
 
 ### Priority 1
 
-- [ ] Create a coin selector that incorporates the fees
+- [ ] Bring test coverage to a meaningful level
+- [x] Create a coin selector that incorporates the fees
 - [x] Binary encoding to reduce bandwidth save time on decoding (protoBuffs)
 - [ ] Add Transaction History
 - [x] Mark UTXOs as spent (or similar) if used for a transaction
@@ -15,6 +16,9 @@ This is the daemon for the BlindBit Wallet.
 
 ### Priority 2
 
+- [ ] More tests for coin selector
+  - Selector seems very accurate, but should rather do +1 sat to exceed fee and don't go below
+- [ ] Coin selector allow float fees
 - [ ] UTXO export - similar to a backup to avoid rescanning from birthHeight
 - [ ] Separate spending password
 - [ ] Out-of-band notifications
@@ -24,6 +28,7 @@ This is the daemon for the BlindBit Wallet.
 - [ ] Expand logging especially on errors
 - [ ] Check which panics to keep
 - [ ] Automatically make annotation in tx-history if sent to sp-address, not possible to reconstruct in hindsight
+- [ ] Don't always add change in coin selector (see todo)
 
 ## IPC
 
@@ -32,8 +37,7 @@ This is the daemon for the BlindBit Wallet.
 - [x] Create New label
     - Give comment
     - Returns label address
-- [ ] Create Tx and broadcast
-- [ ] Broadcast raw Tx
+- [x] Create Tx and broadcast
+- [x] Broadcast raw Tx
 - [ ] Pause/Resume scanning
 - [ ] List UTXOs by label
-- [ ] Broadcast transaction

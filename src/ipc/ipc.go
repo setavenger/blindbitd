@@ -173,6 +173,20 @@ func (s *Server) CreateTransactionAndBroadcast(_ context.Context, in *pb.CreateT
 	return &pb.NewTransaction{Txid: txid}, nil
 }
 
+func (s *Server) BroadcastRawTx(_ context.Context, in *pb.RawTransaction) (*pb.NewTransaction, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+
+	txid, err := s.Daemon.BroadcastTx(in.RawTx)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return nil, err
+	}
+
+	return &pb.NewTransaction{Txid: txid}, nil
+}
+
 func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*pb.Mnemonic, error) {
 	// todo add checks that existing wallet is not overridden
 	// check if a keys file already exists

@@ -62,7 +62,9 @@ func NewFeeRateCoinSelector(utxos src.UtxoCollection, minChangeAmount uint64, re
 }
 
 // CoinSelect
-// returns the utxos to select and the change amount in order to achieve the desired fee rate
+// returns the utxos to select and the change amount in order to achieve the desired fee rate.
+// NOTE: A change amount is always added.
+// todo don't require a change amount and just increase fee if difference is below a certain threshold
 func (s *FeeRateCoinSelector) CoinSelect(feeRate uint32) (src.UtxoCollection, uint64, error) {
 	// todo should we somehow expose the resulting vBytes for later analysis?
 	// todo reduce complexity in this function
@@ -111,9 +113,12 @@ func (s *FeeRateCoinSelector) CoinSelect(feeRate uint32) (src.UtxoCollection, ui
 		selectedInputs = append(selectedInputs, utxo)
 		sumSelectedInputsAmounts += utxo.Amount
 
-		//if i == 0 {
-		vByte += WitnessCountLen / 4
-		//}
+		if i == 0 {
+			vByte += WitnessCountLen / 4
+			// always add change
+			// todo don't do that
+			vByte += OutputValueLen + float64(wire.VarIntSerializeSize(uint64(ScriptPubKeyTaprootLen))) + float64(ScriptPubKeyTaprootLen)
+		}
 
 		// outpoint size
 		vByte += TrInputOutpointLen

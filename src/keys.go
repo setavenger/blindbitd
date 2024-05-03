@@ -30,6 +30,7 @@ func (k *Keys) DeSerialise(data []byte) error {
 }
 
 func CreateNewKeys(passphrase string) (*Keys, error) {
+	// todo write test for this, requires a recover function that recreates the keys from a mnemonic
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
 		logging.ErrorLogger.Println(err)

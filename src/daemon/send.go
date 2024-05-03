@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/btcutil/coinset"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/btcutil/txsort"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/mempool"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/coinselector"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/utils"
 	"github.com/setavenger/gobip352"
@@ -25,51 +28,24 @@ const ExtraDataAmountKey = "amount"
 // SendToRecipients
 // creates a signed transaction that sends to the specified recipients
 // todo should all these functions just be Daemon functions
-func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byte, error) {
+func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([]byte, error) {
 
-	var sumAllOutputs int64
-	for _, recipient := range recipients {
-		sumAllOutputs += recipient.Amount
-	}
+	selector := coinselector.NewFeeRateCoinSelector(d.Wallet.GetFreeUTXOs(), uint64(src.MinChangeAmount), recipients)
 
-	var allPossibleVins []gobip352.Vin
-	// only use the utxos that are unspent, unconfirmed, unspent or others should not be used
-	for _, utxo := range d.Wallet.GetFreeUTXOs() {
-		vin := src.ConvertOwnedUTXOIntoVin(utxo)
-		allPossibleVins = append(allPossibleVins, vin)
-	}
-
-	allPossibleCoins := make([]coinset.Coin, len(allPossibleVins))
-	for i, vin := range allPossibleVins {
-		vinCopy := vin
-		allPossibleCoins[i] = &vinCopy
-	}
-
-	coins, err := coinset.MinNumberCoinSelector{
-		MaxInputs:       len(d.Wallet.UTXOs),
-		MinChangeAmount: btcutil.Amount(src.MinChangeAmount),
-	}.CoinSelect(btcutil.Amount(sumAllOutputs+fee), allPossibleCoins)
+	selectedUTXOs, changeAmount, err := selector.CoinSelect(uint32(feeRate))
 	if err != nil {
 		logging.ErrorLogger.Println(err)
-		// ErrCoinsNoSelectionAvailable
 		return nil, err
 	}
 
 	// vins is the final selection of coins, which can then be used to derive silentPayment Outputs
-	var vins = make([]*gobip352.Vin, len(coins.Coins()))
-	for i, coin := range coins.Coins() {
-		if vin, ok := coin.(*gobip352.Vin); ok {
-			fullVinSecretKey := gobip352.AddPrivateKeys(*vin.SecretKey, d.Wallet.SecretKeySpend())
-			vin.SecretKey = &fullVinSecretKey
-			vins[i] = vin
-		} else {
-			logging.DebugLogger.Printf("vin: %+v\n", vin)
-			panic("coin was not a vin")
-		}
+	var vins = make([]*gobip352.Vin, len(selectedUTXOs))
+	for i, utxo := range selectedUTXOs {
+		vin := src.ConvertOwnedUTXOIntoVin(utxo)
+		fullVinSecretKey := gobip352.AddPrivateKeys(*vin.SecretKey, d.Wallet.SecretKeySpend())
+		vin.SecretKey = &fullVinSecretKey
+		vins[i] = &vin
 	}
-
-	// todo we only do this and the fee calculation until we have a CoinSelector
-	//  which incorporates a fee rate and automatically returns a change output
 
 	// now we need the difference between the inputs and outputs so that we can assign a value for change
 	var sumAllInputs int64
@@ -77,19 +53,11 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 		sumAllInputs += int64(vin.Amount)
 	}
 
-	difference := sumAllInputs - sumAllOutputs
-
-	switch changeAmount := difference - fee; {
-	case changeAmount == 0:
-	// do nothing, no change output needed
-	case changeAmount < src.MinChangeAmount:
-		// here we fail because the changeAmount is not enough
-		return nil, src.ErrMinChangeAmountNotReached
-	default:
-		// change exists, and it is greater than the MinChangeAmount
+	if changeAmount > 0 {
+		// change exists, and it should be greater than the MinChangeAmount
 		recipients = append(recipients, &src.Recipient{
 			Address: d.Wallet.ChangeLabel.Address,
-			Amount:  changeAmount,
+			Amount:  int64(changeAmount),
 		})
 	}
 
@@ -122,6 +90,23 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, fee int64) ([]byt
 	finalTx, err := psbt.Extract(packet)
 	if err != nil {
 		panic(err)
+	}
+
+	var sumAllOutputs int64
+	for _, recipient := range recipients {
+		sumAllOutputs += recipient.Amount
+	}
+	vSize := mempool.GetTxVirtualSize(btcutil.NewTx(finalTx))
+	actualFee := sumAllInputs - sumAllOutputs
+	actualFeeRate := float64(actualFee) / float64(vSize)
+
+	errorTerm := 0.25 // todo make variable
+	if actualFeeRate > float64(feeRate)+errorTerm {
+		return nil, errors.New(fmt.Sprintf("actual fee rate deviates to strong from desired fee rate: %f > %d", actualFeeRate, feeRate))
+	}
+
+	if actualFeeRate < float64(feeRate)-errorTerm {
+		return nil, errors.New(fmt.Sprintf("actual fee rate deviates to strong from desired fee rate: %f < %d", actualFeeRate, feeRate))
 	}
 
 	var buf bytes.Buffer

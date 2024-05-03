@@ -3,9 +3,14 @@ package database
 import (
 	"bytes"
 	"github.com/setavenger/blindbitd/src"
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/gobip352"
 	"testing"
 )
+
+func init() {
+	logging.LoadLoggersMock()
+}
 
 // todo expand test for more vectors and cases
 

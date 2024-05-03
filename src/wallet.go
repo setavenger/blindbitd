@@ -292,14 +292,12 @@ func (w *Wallet) SortedAddresses() ([]Address, error) {
 		}
 	}
 
-	fmt.Println(len(w.LabelsMapping))
-	// todo make sure this is robust
-
 	//check:
 	// todo make a goto GO-label based approach
 	for nextM < len(w.LabelsMapping) {
 		//var found bool
 
+		// todo can this end up in an infinite loop
 		for _, label := range w.LabelsMapping {
 			if label.M == uint32(nextM) {
 				addresses = append(addresses, Address{
@@ -312,12 +310,6 @@ func (w *Wallet) SortedAddresses() ([]Address, error) {
 				break
 			}
 		}
-		//if !found {
-		//	for _, label := range w.LabelsMapping {
-		//		fmt.Printf("%3d - %s \n", label.M, label.Address)
-		//	}
-		//	return nil, errors.New("addresses not sorted escaped here")
-		//}
 	}
 
 	if len(addresses) != len(w.LabelsMapping) {
