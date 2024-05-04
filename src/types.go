@@ -19,7 +19,6 @@ const (
 	StateUnspent
 	StateSpent
 	StateUnconfirmedSpent
-	// todo add state for used coins which have not confirmed, unlike unconfirmed which is for incoming coins
 )
 
 type Recipient struct {
