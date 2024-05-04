@@ -46,7 +46,11 @@ func CreateNewKeys(passphrase string) (*Keys, error) {
 	result.Mnemonic = mnemonic
 
 	// Generate a Bip32 HD wallet for the mnemonic and a user supplied password
-	seed := bip39.NewSeed(mnemonic, passphrase)
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, passphrase)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return nil, err
+	}
 
 	master, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
 	if err != nil {

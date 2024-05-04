@@ -3,8 +3,8 @@ package daemon
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
-	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/gobip352"
 )
 

@@ -1,8 +1,8 @@
 package ipc
 
 import (
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
-	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/blindbitd/src/utils"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

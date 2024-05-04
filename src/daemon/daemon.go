@@ -2,14 +2,15 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/checksum0/go-electrum/electrum"
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
-	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/blindbitd/src/utils"
 )
 
@@ -99,6 +100,10 @@ func (d *Daemon) LoadDataFromDB() error {
 func (d *Daemon) Shutdown() error {
 	// todo save all data to a files
 	fmt.Println("Process shutting down")
+	if d.Status == pb.Status_STATUS_NO_WALLET {
+		// we don't store anything if the wallet was not initialised yet
+		return nil
+	}
 	err := database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
@@ -126,6 +131,9 @@ func (d *Daemon) CreateNewKeys(seedPassphrase string) error {
 		return err
 	}
 	d.Wallet.LoadKeys(newKeys.ScanSecretKey, newKeys.SpendSecretKey)
+	if newKeys.Mnemonic == "" {
+		return errors.New("mnemonic is empty")
+	}
 	d.Mnemonic = newKeys.Mnemonic
 	err = database.WriteToDB(src.PathToKeys, newKeys, d.Password)
 	if err != nil {
