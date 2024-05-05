@@ -18,4 +18,3 @@ minchange_amount = 1000
 # Note that if you receive funds below this threshold you might not find them. Rescan without a dustlimit to find those.
 # default = 1000
 dust_limit = 0
-

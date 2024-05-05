@@ -6,18 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/setavenger/blindbitd/src/logging"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 )
 
 type OwnedUTXO struct {
-	Txid         [32]byte        `json:"txid,omitempty"`
-	Vout         uint32          `json:"vout,omitempty"`
-	Amount       uint64          `json:"amount"`
-	PrivKeyTweak [32]byte        `json:"priv_key_tweak,omitempty"`
-	PubKey       [32]byte        `json:"pub_key,omitempty"`
-	Timestamp    uint64          `json:"timestamp,omitempty"`
-	State        UTXOState       `json:"utxo_state,omitempty"`
-	Label        *gobip352.Label `json:"label"` // the pubKey associated with the label
+	Txid         [32]byte      `json:"txid,omitempty"`
+	Vout         uint32        `json:"vout,omitempty"`
+	Amount       uint64        `json:"amount"`
+	PrivKeyTweak [32]byte      `json:"priv_key_tweak,omitempty"`
+	PubKey       [32]byte      `json:"pub_key,omitempty"`
+	Timestamp    uint64        `json:"timestamp,omitempty"`
+	State        UTXOState     `json:"utxo_state,omitempty"`
+	Label        *bip352.Label `json:"label"` // the pubKey associated with the label
 }
 
 func (u *OwnedUTXO) LabelPubKey() []byte {

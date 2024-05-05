@@ -3,3 +3,5 @@
 /.blindbit
 /test-wallet/
 /wallet*/
+/bin/
+/.wallets/

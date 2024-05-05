@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/setavenger/blindbitd/src/utils"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 	"io"
 	"net/http"
 )
@@ -211,11 +211,11 @@ func (c ClientBlindBit) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 		}
 
 		utxo := &UTXOServed{
-			Txid:         gobip352.ConvertToFixedLength32(txidBytes),
+			Txid:         bip352.ConvertToFixedLength32(txidBytes),
 			Vout:         data.Vout,
 			Amount:       data.Amount,
 			BlockHeight:  data.BlockHeight,
-			BlockHash:    gobip352.ConvertToFixedLength32(blockHashBytes),
+			BlockHash:    bip352.ConvertToFixedLength32(blockHashBytes),
 			ScriptPubKey: utils.ConvertToFixedLength34(scriptPubKeyBytes),
 			Timestamp:    data.Timestamp,
 			Spent:        data.Spent,

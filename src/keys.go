@@ -5,7 +5,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/src/logging"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -46,7 +46,11 @@ func CreateNewKeys(passphrase string) (*Keys, error) {
 	result.Mnemonic = mnemonic
 
 	// Generate a Bip32 HD wallet for the mnemonic and a user supplied password
-	seed := bip39.NewSeed(mnemonic, passphrase)
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, passphrase)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return nil, err
+	}
 
 	master, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
 	if err != nil {
@@ -132,7 +136,7 @@ func DeriveKeysFromMaster(master *hdkeychain.ExtendedKey) (*Keys, error) {
 	}
 
 	return &Keys{
-		ScanSecretKey:  gobip352.ConvertToFixedLength32(secretKeyScan.Serialize()),
-		SpendSecretKey: gobip352.ConvertToFixedLength32(secretKeySpend.Serialize()),
+		ScanSecretKey:  bip352.ConvertToFixedLength32(secretKeyScan.Serialize()),
+		SpendSecretKey: bip352.ConvertToFixedLength32(secretKeySpend.Serialize()),
 	}, nil
 }

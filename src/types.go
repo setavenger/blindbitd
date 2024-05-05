@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 )
 
-var Empty32Arr = gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x00}, 32))
-var Empty33Arr = gobip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x00}, 33))
+var Empty32Arr = bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x00}, 32))
+var Empty33Arr = bip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x00}, 33))
 
 type UTXOState int8
 
@@ -19,7 +19,6 @@ const (
 	StateUnspent
 	StateSpent
 	StateUnconfirmedSpent
-	// todo add state for used coins which have not confirmed, unlike unconfirmed which is for incoming coins
 )
 
 type Recipient struct {
@@ -32,8 +31,8 @@ type Recipient struct {
 
 type Label struct {
 	// todo add created_at field
-	Comment         string `json:"comment"`
-	*gobip352.Label `json:"label"`
+	Comment       string `json:"comment"`
+	*bip352.Label `json:"label"`
 }
 
 // Addresses maps the address to an annotation the annotation might be empty

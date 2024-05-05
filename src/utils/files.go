@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"os"
+	"os/user"
 	"strings"
 )
 
@@ -30,4 +31,12 @@ func CheckIfFileExists(path string) bool {
 		// Schrödinger: file may or may not exist. See err for details.
 		panic(err)
 	}
+}
+
+func ResolvePath(path string) string {
+	// todo also exists in cli; create overarching package where both can pull from
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+
+	return strings.Replace(path, "~", dir, 1)
 }

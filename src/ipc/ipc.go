@@ -3,16 +3,17 @@ package ipc
 import (
 	"context"
 	"errors"
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
 	"github.com/setavenger/blindbitd/src/logging"
-	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/blindbitd/src/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 type Server struct {
@@ -178,6 +179,18 @@ func (s *Server) CreateTransactionAndBroadcast(_ context.Context, in *pb.CreateT
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		// give a delay such that the electrum server can update the state
+		<-time.After(3 * time.Second)
+
+		err = s.Daemon.CheckUnspentUTXOs()
+		if err != nil {
+			// we only log the error here as it is not relevant to the general execution of the ipc call
+			logging.ErrorLogger.Println(err)
+		}
+	}()
+
 	return &pb.NewTransaction{Txid: txid}, nil
 }
 
@@ -212,6 +225,7 @@ func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*p
 
 	err := s.Daemon.CreateNewKeys(in.SeedPassphrase)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 

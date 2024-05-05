@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/logging"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 	"testing"
 )
 
@@ -18,32 +18,32 @@ func TestReadWriteSuccess(t *testing.T) {
 	tmpTestPath := "/tmp/example1"
 	passphrase := []byte("passKey")
 
-	//empty32Arr := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x00}, 32))
-	//empty33Arr := gobip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x00}, 33))
+	//empty32Arr := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x00}, 32))
+	//empty33Arr := bip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x00}, 33))
 
-	txid := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
-	tweak := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x02}, 32))
-	pubKey := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x03}, 32))
+	txid := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
+	tweak := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x02}, 32))
+	pubKey := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x03}, 32))
 
-	pubKeyLabel := gobip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x04}, 33))
-	tweakLabel := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x05}, 32))
+	pubKeyLabel := bip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x04}, 33))
+	tweakLabel := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x05}, 32))
 
 	//
 
-	txid2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
-	tweak2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xaa}, 32))
-	pubKey2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xbb}, 32))
+	txid2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
+	tweak2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xaa}, 32))
+	pubKey2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xbb}, 32))
 
-	pubKeyLabel2 := gobip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x44}, 33))
-	tweakLabel2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x55}, 32))
+	pubKeyLabel2 := bip352.ConvertToFixedLength33(bytes.Repeat([]byte{0x44}, 33))
+	tweakLabel2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x55}, 32))
 
-	label1 := gobip352.Label{
+	label1 := bip352.Label{
 		PubKey:  pubKeyLabel,
 		Tweak:   tweakLabel,
 		Address: "this_is_my_example_address",
 		M:       3,
 	}
-	label2 := gobip352.Label{
+	label2 := bip352.Label{
 		PubKey:  pubKeyLabel2,
 		Tweak:   tweakLabel2,
 		Address: "a_different_label_address",
@@ -174,9 +174,9 @@ func TestWrongPass(t *testing.T) {
 	passphrase := []byte("passKey")
 	passphraseWrong := []byte("passKey1")
 
-	txid := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
+	txid := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
 
-	txid2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
+	txid2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
 
 	var collection = &src.UtxoCollection{
 		{
@@ -214,9 +214,9 @@ func TestWrongPath(t *testing.T) {
 	tmpTestPathWrong := "/tmp/example3-wrong"
 	passphrase := []byte("passKey")
 
-	txid := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
+	txid := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
 
-	txid2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
+	txid2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
 
 	var collection = &src.UtxoCollection{
 		{
@@ -258,9 +258,9 @@ func TestInterfaceNil(t *testing.T) {
 	tmpTestPath := "/tmp/example3"
 	passphrase := []byte("passKey")
 
-	txid := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
+	txid := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0x01}, 32))
 
-	txid2 := gobip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
+	txid2 := bip352.ConvertToFixedLength32(bytes.Repeat([]byte{0xee}, 32))
 
 	var collection = &src.UtxoCollection{
 		{

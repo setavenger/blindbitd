@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/checksum0/go-electrum/electrum"
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
 	"github.com/setavenger/blindbitd/src/ipc"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
-	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/blindbitd/src/utils"
 	"os"
 	"os/signal"
@@ -47,13 +47,13 @@ func main() {
 	src.LoadConfigs(src.PathConfig)
 
 	// create the daemon but locked and without Wallet data
-	c := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
-	client, err := electrum.NewClientTCP(context.Background(), src.ElectrumServerAddress)
+	clientBlindBit := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
+	clientElectrum, err := electrum.NewClientTCP(context.Background(), src.ElectrumServerAddress)
 	if err != nil {
 		panic(err)
 	}
 
-	d := daemon.NewDaemon(nil, &c, client, src.ChainParams)
+	d := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum, src.ChainParams)
 	d.Status = pb.Status_STATUS_STARTING
 
 	defer func() {

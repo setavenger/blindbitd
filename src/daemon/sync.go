@@ -2,16 +2,17 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"github.com/btcsuite/btcd/btcutil/gcs"
 	"github.com/btcsuite/btcd/btcutil/gcs/builder"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
-	"github.com/setavenger/blindbitd/src/pb"
 	"github.com/setavenger/blindbitd/src/utils"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 	"time"
 )
 
@@ -25,7 +26,7 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 	}
 
 	// otherwise change will not be found
-	labelsToCheck := append([]*gobip352.Label{d.Wallet.ChangeLabel}, d.Wallet.Labels...)
+	labelsToCheck := append([]*bip352.Label{d.Wallet.ChangeLabel}, d.Wallet.Labels...)
 
 	// todo change back to assigning via index slice[i] once we are sure how long a slice will be; can we be sure how long it will always be?
 	var potentialOutputs [][]byte
@@ -37,14 +38,14 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 
 	for _, tweak := range tweaks {
 		var sharedSecret [33]byte
-		sharedSecret, err = gobip352.CreateSharedSecret(tweak, d.Wallet.SecretKeyScan(), nil)
+		sharedSecret, err = bip352.CreateSharedSecret(tweak, d.Wallet.SecretKeyScan(), nil)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
 			return nil, err
 		}
 
 		var outputPubKey [32]byte
-		outputPubKey, err = gobip352.CreateOutputPubKey(sharedSecret, d.Wallet.PubKeySpend, 0)
+		outputPubKey, err = bip352.CreateOutputPubKey(sharedSecret, d.Wallet.PubKeySpend, 0)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
 			return nil, err
@@ -54,11 +55,11 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 		potentialOutputs = append(potentialOutputs, append([]byte{0x51, 0x20}, outputPubKey[:]...))
 		for _, label := range labelsToCheck {
 
-			outputPubKey33 := gobip352.ConvertToFixedLength33(append([]byte{0x02}, outputPubKey[:]...))
+			outputPubKey33 := bip352.ConvertToFixedLength33(append([]byte{0x02}, outputPubKey[:]...))
 
 			// even parity
 			var labelPotentialOutputPrep [33]byte
-			labelPotentialOutputPrep, err = gobip352.AddPublicKeys(outputPubKey33, label.PubKey)
+			labelPotentialOutputPrep, err = bip352.AddPublicKeys(outputPubKey33, label.PubKey)
 			if err != nil {
 				logging.ErrorLogger.Println(err)
 				panic(err)
@@ -67,12 +68,12 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 
 			// add label with uneven parity as well
 			var negatedLabelPubKey [33]byte
-			negatedLabelPubKey, err = gobip352.NegatePublicKey(label.PubKey)
+			negatedLabelPubKey, err = bip352.NegatePublicKey(label.PubKey)
 			if err != nil {
 				logging.ErrorLogger.Println(err)
 				panic(err)
 			}
-			labelPotentialOutputPrep, err = gobip352.AddPublicKeys(outputPubKey33, negatedLabelPubKey)
+			labelPotentialOutputPrep, err = bip352.AddPublicKeys(outputPubKey33, negatedLabelPubKey)
 			if err != nil {
 				logging.ErrorLogger.Println(err)
 				panic(err)
@@ -98,7 +99,7 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 
 	c := chainhash.Hash{}
 
-	err = c.SetBytes(gobip352.ReverseBytesCopy(filterData.BlockHash))
+	err = c.SetBytes(bip352.ReverseBytesCopy(filterData.BlockHash))
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
@@ -129,16 +130,16 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 		return nil, err
 	}
 
-	var foundOutputs []*gobip352.FoundOutput
+	var foundOutputs []*bip352.FoundOutput
 
 	var blockOutputs = make([][32]byte, len(utxos)) // we use it as txOutputs we check against all outputs from the block
 	for i, utxo := range utxos {
-		blockOutputs[i] = gobip352.ConvertToFixedLength32(utxo.ScriptPubKey[2:])
+		blockOutputs[i] = bip352.ConvertToFixedLength32(utxo.ScriptPubKey[2:])
 	}
 
 	for _, tweak := range tweaks {
-		var foundOutputsPerTweak []*gobip352.FoundOutput
-		foundOutputsPerTweak, err = gobip352.ReceiverScanTransaction(d.Wallet.SecretKeyScan(), d.Wallet.PubKeySpend, labelsToCheck, blockOutputs, tweak, nil)
+		var foundOutputsPerTweak []*bip352.FoundOutput
+		foundOutputsPerTweak, err = bip352.ReceiverScanTransaction(d.Wallet.SecretKeyScan(), d.Wallet.PubKeySpend, labelsToCheck, blockOutputs, tweak, nil)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
 			return nil, err
@@ -149,7 +150,7 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 	// use a map to not have to iterate for every found UTXOServed, map should be faster lookup
 	matchUTXOMap := make(map[[32]byte]*networking.UTXOServed)
 	for _, utxo := range utxos {
-		matchUTXOMap[gobip352.ConvertToFixedLength32(utxo.ScriptPubKey[2:])] = utxo
+		matchUTXOMap[bip352.ConvertToFixedLength32(utxo.ScriptPubKey[2:])] = utxo
 	}
 
 	var ownedUTXOs []*src.OwnedUTXO
@@ -197,7 +198,7 @@ func (d *Daemon) SyncToTip(chainTip uint64) error {
 		startHeight = d.Wallet.LastScanHeight + 1
 	}
 
-	if startHeight >= chainTip {
+	if startHeight > chainTip {
 		return nil
 	}
 
@@ -225,6 +226,9 @@ func (d *Daemon) SyncToTip(chainTip uint64) error {
 			return err
 		}
 		d.Wallet.LastScanHeight = i
+		if d.Locked || d.Password == nil {
+			return errors.New("daemon is locked or has no encryption password")
+		}
 		err = database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
@@ -273,6 +277,9 @@ func (d *Daemon) ForceSyncFrom(fromHeight uint64) error {
 			return err
 		}
 		d.Wallet.LastScanHeight = i
+		if d.Locked || d.Password == nil {
+			return errors.New("daemon is locked or has no encryption password")
+		}
 		err = database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
 		if err != nil {
 			logging.ErrorLogger.Println(err)

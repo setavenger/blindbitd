@@ -3,9 +3,9 @@ package daemon
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
-	"github.com/setavenger/blindbitd/src/pb"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 )
 
 func (d *Daemon) LoadTestData() error {
@@ -13,7 +13,7 @@ func (d *Daemon) LoadTestData() error {
 	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")
 	spendBytes, _ := hex.DecodeString("c88567742d5019d7ccc81f6e82cef8ef01997a6a3761cc9166036b580549539b")
 
-	d.Wallet.LoadKeys(gobip352.ConvertToFixedLength32(scanBytes), gobip352.ConvertToFixedLength32(spendBytes))
+	d.Wallet.LoadKeys(bip352.ConvertToFixedLength32(scanBytes), bip352.ConvertToFixedLength32(spendBytes))
 	address, err := d.Wallet.GenerateAddress()
 	if err != nil {
 		panic(err)
@@ -46,7 +46,7 @@ func (d *Daemon) RunTests() {
 	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")
 	spendBytes, _ := hex.DecodeString("c88567742d5019d7ccc81f6e82cef8ef01997a6a3761cc9166036b580549539b")
 
-	d.Wallet.LoadKeys(gobip352.ConvertToFixedLength32(scanBytes), gobip352.ConvertToFixedLength32(spendBytes))
+	d.Wallet.LoadKeys(bip352.ConvertToFixedLength32(scanBytes), bip352.ConvertToFixedLength32(spendBytes))
 	address, err := d.Wallet.GenerateAddress()
 	if err != nil {
 		panic(err)
