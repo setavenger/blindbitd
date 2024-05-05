@@ -12,7 +12,7 @@ and the mnemonic separately.
 
 ### Requirements
 
-- go 1.18 installed
+- go 1.21.9 installed 
 - access to an electrum server
 - access to a blindbit style indexing server like [BlindBit Oracle](https://github.com/setavenger/blindbit-oracle)
     - I'm hosting a signet BlindBit-Oracle server here: signet.blindbit.snblago.com:8000
@@ -41,7 +41,17 @@ Build only blindbit-cli with:
 $ make build-cli
 ```
 
-The daemon requires a 
+### Run
+The daemon requires a config toml file `blindbit.toml` to be present in its datadir. The socket to the daemon is created in `<datadir/run/blindbit.socket>`. The path to the socket has to be passed to `blindbit-cli` in order to access the daemon. The default path for blindbitd is `~/.blindbitd`. For both programs the default path forthe socket is set to `~/.blindbitd/run/blindbit.socket`.
+
+You can then run with:
+```console
+$ bin/blindbitd
+```
+
+```console
+$ bin/blindbitd-cli status
+```
 
 
 ## Todo
@@ -55,7 +65,7 @@ The daemon requires a
 - [x] Mark UTXOs as spent (or similar) if used for a transaction
 - [ ] Sometimes unlock does not work on first try, needs a restart of the daemon
 - [ ] Add gRPC credentials
-- [ ] Change naming convention of log files
+- [x] Change naming convention of log files
     - It should be easy to determine such that a user does not always have to check the current name
 
 ### Priority 2
