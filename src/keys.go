@@ -5,7 +5,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/src/logging"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -136,7 +136,7 @@ func DeriveKeysFromMaster(master *hdkeychain.ExtendedKey) (*Keys, error) {
 	}
 
 	return &Keys{
-		ScanSecretKey:  gobip352.ConvertToFixedLength32(secretKeyScan.Serialize()),
-		SpendSecretKey: gobip352.ConvertToFixedLength32(secretKeySpend.Serialize()),
+		ScanSecretKey:  bip352.ConvertToFixedLength32(secretKeyScan.Serialize()),
+		SpendSecretKey: bip352.ConvertToFixedLength32(secretKeySpend.Serialize()),
 	}, nil
 }

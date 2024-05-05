@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/setavenger/blindbit-cli/cmd"
+import "github.com/setavenger/blindbitd/cli/cmd"
 
 func main() {
 	cmd.Execute()

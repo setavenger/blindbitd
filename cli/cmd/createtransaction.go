@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -26,11 +23,11 @@ var (
 	createtransactionCmd = &cobra.Command{
 		Use:   "createtransaction",
 		Short: "Construct a transaction",
-		Long: `This command can be used to create a transaction sending to exactly one address.
-Use createtransactionmany if you want to send to several recipients.
-By default this will output the raw transaction hex.
-Setting the --broadcast flag will automatically broadcast the transaction.
-Then the command will output the txid of the created transaction.`,
+		Long: "This command can be used to create a transaction sending to exactly one address.\n" +
+			"Use `createtransactionmany` if you want to send to several recipients.\n" +
+			"By default this will output the raw transaction hex.\n" +
+			"Setting the `--broadcast` flag will automatically broadcast the transaction.\n" +
+			"Then the command will output the txid of the created transaction.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if address == "" {
 				log.Fatalln("address is required, got:", address)

@@ -5,16 +5,15 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 )
 
 func LoadLoggers(directoryPath string) {
 
-	file, err := os.OpenFile(fmt.Sprintf("%s/logs-%s.txt", directoryPath, time.Now()), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	file, err := os.OpenFile(fmt.Sprintf("%s/logs.log", directoryPath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fileDebug, err := os.OpenFile(fmt.Sprintf("%s/logs-debug-%s.txt", directoryPath, time.Now()), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	fileDebug, err := os.OpenFile(fmt.Sprintf("%s/logs-debug.log", directoryPath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}

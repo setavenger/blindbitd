@@ -8,7 +8,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/src/logging"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 )
 
 // StandardAddressComment Identifier for the base non-labelled address
@@ -16,19 +16,19 @@ const StandardAddressComment = "standard"
 
 type Wallet struct {
 	secretKeyScan  [32]byte
-	secretKeySpend [32]byte          // todo might not populate it and only load it on spend
-	PubKeyScan     [33]byte          `json:"pub_key_scan"`
-	PubKeySpend    [33]byte          `json:"pub_key_spend"`
-	BirthHeight    uint64            `json:"birth_height,omitempty"`
-	LastScanHeight uint64            `json:"last_scan,omitempty"`
-	UTXOs          UtxoCollection    `json:"utxos,omitempty"`
-	Labels         []*gobip352.Label `json:"labels"`       // Labels contains all labels except for the change label
-	ChangeLabel    *gobip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
-	NextLabelM     uint32            `json:"next_label_m"` // NextLabelM indicates which m will be used to derive the next label
-	PubKeysToWatch [][32]byte        `json:"pub_keys_to_watch"`
-	Addresses      Addresses         `json:"addresses"`
-	LabelsMapping  LabelsMapping     `json:"labels_mapping"` // never show LabelsMapping addresses to the user - it includes the change label which should NEVER be shown to normal users
-	UTXOMapping    UTXOMapping       `json:"utxo_mapping"`   // used to keep track of utxos and not add the same twice
+	secretKeySpend [32]byte        // todo might not populate it and only load it on spend
+	PubKeyScan     [33]byte        `json:"pub_key_scan"`
+	PubKeySpend    [33]byte        `json:"pub_key_spend"`
+	BirthHeight    uint64          `json:"birth_height,omitempty"`
+	LastScanHeight uint64          `json:"last_scan,omitempty"`
+	UTXOs          UtxoCollection  `json:"utxos,omitempty"`
+	Labels         []*bip352.Label `json:"labels"`       // Labels contains all labels except for the change label
+	ChangeLabel    *bip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
+	NextLabelM     uint32          `json:"next_label_m"` // NextLabelM indicates which m will be used to derive the next label
+	PubKeysToWatch [][32]byte      `json:"pub_keys_to_watch"`
+	Addresses      Addresses       `json:"addresses"`
+	LabelsMapping  LabelsMapping   `json:"labels_mapping"` // never show LabelsMapping addresses to the user - it includes the change label which should NEVER be shown to normal users
+	UTXOMapping    UTXOMapping     `json:"utxo_mapping"`   // used to keep track of utxos and not add the same twice
 }
 
 func NewWallet(birthHeight uint64) *Wallet {
@@ -63,8 +63,8 @@ func (w *Wallet) LoadKeys(secretKeyScan, secretKeySpend [32]byte) {
 	_, pubKeyScan := btcec.PrivKeyFromBytes(secretKeyScan[:])
 	_, pubKeySpend := btcec.PrivKeyFromBytes(secretKeySpend[:])
 
-	w.PubKeyScan = gobip352.ConvertToFixedLength33(pubKeyScan.SerializeCompressed())
-	w.PubKeySpend = gobip352.ConvertToFixedLength33(pubKeySpend.SerializeCompressed())
+	w.PubKeyScan = bip352.ConvertToFixedLength33(pubKeyScan.SerializeCompressed())
+	w.PubKeySpend = bip352.ConvertToFixedLength33(pubKeySpend.SerializeCompressed())
 
 	return
 }
@@ -74,7 +74,7 @@ func (w *Wallet) GenerateAddress() (string, error) {
 	if ChainParams.Name == chaincfg.MainNetParams.Name {
 		mainnet = true
 	}
-	address, err := gobip352.CreateAddress(w.PubKeyScan, w.PubKeySpend, mainnet, 0)
+	address, err := bip352.CreateAddress(w.PubKeyScan, w.PubKeySpend, mainnet, 0)
 	if err != nil {
 		return "", err
 	}
@@ -93,13 +93,13 @@ func (w *Wallet) GenerateNewLabel(comment string) (*Label, error) {
 	}
 
 	m := w.NextLabelM
-	label, err := gobip352.CreateLabel(w.secretKeyScan, m)
+	label, err := bip352.CreateLabel(w.secretKeyScan, m)
 	if err != nil {
 		return nil, err
 	}
 
-	BmKey, err := gobip352.AddPublicKeys(w.PubKeySpend, label.PubKey)
-	address, err := gobip352.CreateAddress(w.PubKeyScan, BmKey, mainnet, 0)
+	BmKey, err := bip352.AddPublicKeys(w.PubKeySpend, label.PubKey)
+	address, err := bip352.CreateAddress(w.PubKeyScan, BmKey, mainnet, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -129,13 +129,13 @@ func (w *Wallet) GenerateChangeLabel() (string, error) {
 	}
 	// the change label is always m = 0 as defined in the BIP
 	var m uint32 = 0
-	label, err := gobip352.CreateLabel(w.secretKeyScan, m)
+	label, err := bip352.CreateLabel(w.secretKeyScan, m)
 	if err != nil {
 		return "", err
 	}
 
-	BmKey, err := gobip352.AddPublicKeys(w.PubKeySpend, label.PubKey)
-	address, err := gobip352.CreateAddress(w.PubKeyScan, BmKey, mainnet, 0)
+	BmKey, err := bip352.AddPublicKeys(w.PubKeySpend, label.PubKey)
+	address, err := bip352.CreateAddress(w.PubKeyScan, BmKey, mainnet, 0)
 	if err != nil {
 		return "", err
 	}
@@ -319,8 +319,8 @@ func (w *Wallet) SortedAddresses() ([]Address, error) {
 	return addresses, nil
 }
 
-func ConvertOwnedUTXOIntoVin(utxo *OwnedUTXO) gobip352.Vin {
-	vin := gobip352.Vin{
+func ConvertOwnedUTXOIntoVin(utxo *OwnedUTXO) bip352.Vin {
+	vin := bip352.Vin{
 		Txid:         utxo.Txid,
 		Vout:         utxo.Vout,
 		Amount:       utxo.Amount,

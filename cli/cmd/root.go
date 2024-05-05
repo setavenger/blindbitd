@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"log"
+	"github.com/setavenger/blindbitd/cli/lib"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -32,9 +32,13 @@ func init() {
 	// defines where to attach to the ipc socket
 	RootCmd.PersistentFlags().StringVarP(&socketPath, "socket", "s", DefaultSocketPath, "Set the socket path. This is set to blindbitd default value")
 
+	// resolve path for home "~"
+	socketPath = lib.ResolvePath(socketPath)
+
 	// required flags
-	err := cobra.MarkFlagRequired(RootCmd.PersistentFlags(), "socket")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	// is not required to be able to fall back to default
+	//err := cobra.MarkFlagRequired(RootCmd.PersistentFlags(), "socket")
+	//if err != nil {
+	//log.Fatalln(err)
+	//}
 }

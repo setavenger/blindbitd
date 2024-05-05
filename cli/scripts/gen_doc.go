@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/setavenger/blindbit-cli/cmd"
+	"github.com/setavenger/blindbitd/cli/cmd"
 	"github.com/spf13/cobra/doc"
 	"log"
 	"os"

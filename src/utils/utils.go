@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 )
 
 func ConvertToFixedLength34(input []byte) [34]byte {
@@ -40,5 +40,5 @@ func CopyBytes(bytes []byte) []byte {
 func ConvertPubKeyToScriptHash(pubKey [32]byte) string {
 	data := append([]byte{0x51, 0x20}, pubKey[:]...)
 	hash := sha256.Sum256(data)
-	return hex.EncodeToString(gobip352.ReverseBytesCopy(hash[:]))
+	return hex.EncodeToString(bip352.ReverseBytesCopy(hash[:]))
 }

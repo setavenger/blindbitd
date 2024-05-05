@@ -68,7 +68,7 @@ To add a passphrase to your seed set the --seedpass flag (not extensively tested
 			if showMnemonic {
 				fmt.Println()
 				fmt.Println("Mnemonic:", response.Mnemonic)
-				fmt.Println("The 12/24 words above are the access to your funds. Don't ")
+				fmt.Println("The 12/24 words above are the access to your funds.\nDon't publish or share them, you risk loosing your funds.")
 			}
 		},
 	}

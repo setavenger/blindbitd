@@ -41,6 +41,9 @@ func SetPaths(baseDirectory string) {
 		DirectoryPath = baseDirectory
 	}
 
+	// do this so that we can parse ~ in paths
+	DirectoryPath = utils.ResolvePath(DirectoryPath)
+
 	PathLogs = DirectoryPath + logsPath
 	PathIpcSocketDir = DirectoryPath + PathEndingSocketDirPath
 	PathIpcSocket = DirectoryPath + PathEndingSocketPath

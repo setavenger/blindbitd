@@ -19,9 +19,9 @@ The daemon will also be expanded, stay tuned...
     - [x] List utxos by state
 - [x] ListAddresses
 - [ ] CreateTransaction
-  - [ ] single recipient
+  - [x] single recipient
   - [ ] multi recipients
-- [ ] BroadcastRawTx
+- [x] BroadcastRawTx
 - [ ] GetMnemonic
 - [x] CreateNewWallet
 - [ ] ForceRescanFromHeight

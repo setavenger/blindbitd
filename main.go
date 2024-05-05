@@ -47,13 +47,13 @@ func main() {
 	src.LoadConfigs(src.PathConfig)
 
 	// create the daemon but locked and without Wallet data
-	c := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
-	client, err := electrum.NewClientTCP(context.Background(), src.ElectrumServerAddress)
+	clientBlindBit := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
+	clientElectrum, err := electrum.NewClientTCP(context.Background(), src.ElectrumServerAddress)
 	if err != nil {
 		panic(err)
 	}
 
-	d := daemon.NewDaemon(nil, &c, client, src.ChainParams)
+	d := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum, src.ChainParams)
 	d.Status = pb.Status_STATUS_STARTING
 
 	defer func() {

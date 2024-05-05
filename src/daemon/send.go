@@ -20,7 +20,7 @@ import (
 	"github.com/setavenger/blindbitd/src/coinselector"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/utils"
-	"github.com/setavenger/gobip352"
+	"github.com/setavenger/go-bip352"
 )
 
 const ExtraDataAmountKey = "amount"
@@ -39,10 +39,10 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([
 	}
 
 	// vins is the final selection of coins, which can then be used to derive silentPayment Outputs
-	var vins = make([]*gobip352.Vin, len(selectedUTXOs))
+	var vins = make([]*bip352.Vin, len(selectedUTXOs))
 	for i, utxo := range selectedUTXOs {
 		vin := src.ConvertOwnedUTXOIntoVin(utxo)
-		fullVinSecretKey := gobip352.AddPrivateKeys(*vin.SecretKey, d.Wallet.SecretKeySpend())
+		fullVinSecretKey := bip352.AddPrivateKeys(*vin.SecretKey, d.Wallet.SecretKeySpend())
 		vin.SecretKey = &fullVinSecretKey
 		vins[i] = &vin
 	}
@@ -128,8 +128,8 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([
 //
 // NOTE: Existing PkScripts will NOT be overridden, those recipients will be skipped and returned as given
 // todo keep original order in case that is relevant for any use case?
-func ParseRecipients(recipients []*src.Recipient, vins []*gobip352.Vin, chainParam *chaincfg.Params) ([]*src.Recipient, error) {
-	var spRecipients []*gobip352.Recipient
+func ParseRecipients(recipients []*src.Recipient, vins []*bip352.Vin, chainParam *chaincfg.Params) ([]*src.Recipient, error) {
+	var spRecipients []*bip352.Recipient
 
 	// newRecipients tracks the modified group of recipients in order to avoid clashes
 	var newRecipients []*src.Recipient
@@ -157,18 +157,19 @@ func ParseRecipients(recipients []*src.Recipient, vins []*gobip352.Vin, chainPar
 			continue
 		}
 
-		extraData := map[string]any{}
-		extraData[ExtraDataAmountKey] = recipient.Amount
-
-		spRecipients = append(spRecipients, &gobip352.Recipient{
+		spRecipients = append(spRecipients, &bip352.Recipient{
 			SilentPaymentAddress: recipient.Address,
 			Amount:               uint64(recipient.Amount),
-			Data:                 extraData,
 		})
 	}
 
+	var mainnet bool
+	if src.ChainParams.Name == chaincfg.MainNetParams.Name {
+		mainnet = true
+	}
+
 	if len(spRecipients) > 0 {
-		err := gobip352.SenderCreateOutputs(spRecipients, vins, false, false)
+		err := bip352.SenderCreateOutputs(spRecipients, vins, mainnet, false)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +201,7 @@ func sanityCheckRecipientsForSending(recipients []*src.Recipient) error {
 	return nil
 }
 
-func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psbt.Packet, error) {
+func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*bip352.Vin) (*psbt.Packet, error) {
 	var txOutputs []*wire.TxOut
 	for _, recipient := range recipients {
 		txOutputs = append(txOutputs, wire.NewTxOut(recipient.Amount, recipient.PkScript))
@@ -208,7 +209,7 @@ func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psb
 
 	var txInputs []*wire.TxIn
 	for _, vin := range vins {
-		hash, err := chainhash.NewHash(gobip352.ReverseBytesCopy(vin.Txid[:]))
+		hash, err := chainhash.NewHash(bip352.ReverseBytesCopy(vin.Txid[:]))
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +232,7 @@ func CreateUnsignedPsbt(recipients []*src.Recipient, vins []*gobip352.Vin) (*psb
 
 // SignPsbt
 // fails if inputs in packet have a different order than vins
-func SignPsbt(packet *psbt.Packet, vins []*gobip352.Vin) error {
+func SignPsbt(packet *psbt.Packet, vins []*bip352.Vin) error {
 	if len(packet.UnsignedTx.TxIn) != len(vins) {
 		return src.ErrTxInputAndVinLengthMismatch
 	}
@@ -269,11 +270,11 @@ func SignPsbt(packet *psbt.Packet, vins []*gobip352.Vin) error {
 
 }
 
-func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*gobip352.Vin) (psbt.PInput, error) {
+func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*bip352.Vin) (psbt.PInput, error) {
 	var psbtInput psbt.PInput
 
 	for _, vin := range vins {
-		if bytes.Equal(input.PreviousOutPoint.Hash[:], gobip352.ReverseBytesCopy(vin.Txid[:])) &&
+		if bytes.Equal(input.PreviousOutPoint.Hash[:], bip352.ReverseBytesCopy(vin.Txid[:])) &&
 			input.PreviousOutPoint.Index == vin.Vout {
 			privKey, pk := btcec.PrivKeyFromBytes(vin.SecretKey[:])
 
@@ -297,7 +298,6 @@ func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*gobip352.Vin) 
 				SighashType:        txscript.SigHashDefault,
 				FinalScriptWitness: witnessBytes.Bytes(),
 			}, err
-
 		}
 	}
 
@@ -307,8 +307,8 @@ func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*gobip352.Vin) 
 
 /*  util functions */
 
-// ConvertSPRecipient converts a gobip352.Recipient to a Recipient native to this program
-func ConvertSPRecipient(recipient *gobip352.Recipient) *src.Recipient {
+// ConvertSPRecipient converts a bip352.Recipient to a Recipient native to this program
+func ConvertSPRecipient(recipient *bip352.Recipient) *src.Recipient {
 	return &src.Recipient{
 		Address:  recipient.SilentPaymentAddress,
 		PkScript: append([]byte{0x51, 0x20}, recipient.Output[:]...),

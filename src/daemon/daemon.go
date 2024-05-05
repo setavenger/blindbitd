@@ -84,7 +84,7 @@ func (d *Daemon) LoadDataFromDB() error {
 		return err
 	}
 
-	if utils.CheckIfFileExists(src.PathToKeys) {
+	if utils.CheckIfFileExists(src.PathDbWallet) {
 		err = database.ReadFromDB(src.PathDbWallet, &wallet, d.Password)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
@@ -102,6 +102,9 @@ func (d *Daemon) Shutdown() error {
 	fmt.Println("Process shutting down")
 	if d.Status == pb.Status_STATUS_NO_WALLET {
 		// we don't store anything if the wallet was not initialised yet
+		return nil
+	}
+	if d.Locked || d.Password == nil {
 		return nil
 	}
 	err := database.WriteToDB(src.PathDbWallet, d.Wallet, d.Password)
@@ -135,6 +138,9 @@ func (d *Daemon) CreateNewKeys(seedPassphrase string) error {
 		return errors.New("mnemonic is empty")
 	}
 	d.Mnemonic = newKeys.Mnemonic
+	if d.Locked || d.Password == nil {
+		return errors.New("daemon is locked or has no encryption password")
+	}
 	err = database.WriteToDB(src.PathToKeys, newKeys, d.Password)
 	if err != nil {
 		logging.ErrorLogger.Println(err)

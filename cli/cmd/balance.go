@@ -14,6 +14,8 @@ import (
 var (
 	listUTXOs bool
 
+	listAll bool
+
 	showUnconfirmed      = false
 	showUnspent          = false
 	showSpent            = false
@@ -55,22 +57,32 @@ var (
 				log.Fatalf("Error: Getting UTXOs failed: %v\n", err)
 			}
 
+			var filteredUTXOs []*pb.OwnedUTXO
+
 			var balance uint64
 
-			for _, state := range states {
-				for _, utxo := range utxos.Utxos {
-					if utxo.UtxoState == state {
-						if listUTXOs {
-							label := ""
-							if utxo.Label != nil {
-								label = *utxo.Label
-							}
-							fmt.Printf("%x:%d - %s - %s -%s\n", utxo.Txid, utxo.Vout, lib.ConvertIntToThousandString(int(utxo.Amount)), label, utxo.UtxoState)
-						} else {
-							// todo if another case opens up change this
-							balance += utxo.Amount
+			if listAll {
+				filteredUTXOs = utxos.Utxos
+			} else {
+				for _, state := range states {
+					for _, utxo := range utxos.Utxos {
+						if utxo.UtxoState == state {
+							filteredUTXOs = append(filteredUTXOs, utxo)
 						}
 					}
+				}
+			}
+
+			for _, utxo := range filteredUTXOs {
+				if listUTXOs {
+					label := ""
+					if utxo.Label != nil {
+						label = *utxo.Label
+					}
+					fmt.Printf("%x:%d - %s - %s - %s\n", utxo.Txid, utxo.Vout, lib.ConvertIntToThousandString(int(utxo.Amount)), utxo.UtxoState, label)
+				} else {
+					// todo if another case opens up change this
+					balance += utxo.Amount
 				}
 			}
 
@@ -87,6 +99,7 @@ func init() {
 	RootCmd.AddCommand(balanceCmd)
 
 	balanceCmd.PersistentFlags().BoolVar(&listUTXOs, "list", false, "list utxos instead showing the balance")
+	balanceCmd.PersistentFlags().BoolVar(&listAll, "all", false, "list all states")
 
 	balanceCmd.PersistentFlags().BoolVar(&showUnconfirmed, "unconfirmed", false, "add unconfirmed utxos to the filter")
 	balanceCmd.PersistentFlags().BoolVar(&showUnspent, "unspent", false, "add unspent utxos to the filter")
