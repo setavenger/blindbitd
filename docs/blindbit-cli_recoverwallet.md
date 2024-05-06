@@ -1,19 +1,20 @@
-## blindbit-cli shutdown
+## blindbit-cli recoverwallet
 
-Shuts down the daemon
+Recover a wallet from mnemonic seed
 
 ### Synopsis
 
-Daemon has to be unlocked. This command shuts down the daemon.
+birthheight is required if you want to scan the entire chain then set it to one
 
 ```
-blindbit-cli shutdown [flags]
+blindbit-cli recoverwallet [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for shutdown
+      --birthheight uint   set the birth height for a recovered wallet
+  -h, --help               help for recoverwallet
 ```
 
 ### Options inherited from parent commands
