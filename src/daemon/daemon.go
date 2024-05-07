@@ -76,6 +76,7 @@ func (d *Daemon) LoadDataFromDB() error {
 
 	var wallet src.Wallet
 
+	d.Mnemonic = keys.Mnemonic
 	// load keys in any case other data will be read in next step if available
 	wallet.LoadKeys(keys.ScanSecretKey, keys.SpendSecretKey)
 	err = wallet.CheckAndInitialiseFields()
@@ -161,4 +162,42 @@ func (d *Daemon) CreateNewKeys(seedPassphrase string) error {
 	}
 
 	return nil
+}
+
+func (d *Daemon) RecoverFromSeed(mnemonic, seedPassphrase string, birthHeight uint64) error {
+
+	d.Wallet = src.NewWallet(birthHeight)
+	newKeys, err := src.KeysFromMnemonic(mnemonic, seedPassphrase)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+	d.Wallet.LoadKeys(newKeys.ScanSecretKey, newKeys.SpendSecretKey)
+	if newKeys.Mnemonic == "" {
+		return errors.New("mnemonic is empty")
+	}
+	d.Mnemonic = newKeys.Mnemonic
+	if d.Locked || d.Password == nil {
+		return errors.New("daemon is locked or has no encryption password")
+	}
+	err = database.WriteToDB(src.PathToKeys, newKeys, d.Password)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	// setup up the other important stuff needed
+	err = d.Wallet.CheckAndInitialiseFields()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	_, err = d.Wallet.GenerateAddress()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	return err
 }

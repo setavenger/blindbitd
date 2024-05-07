@@ -118,6 +118,8 @@ func (s *Server) ListUTXOs(_ context.Context, _ *pb.Empty) (*pb.UTXOCollection, 
 	return &pb.UTXOCollection{Utxos: convertWalletUTXOs(s.Daemon.Wallet.UTXOs, s.Daemon.Wallet.LabelsMapping)}, nil
 }
 
+// ListAddresses
+// returns the addresses of the wallet. The main address is first and the labels are returned sorted by m
 func (s *Server) ListAddresses(_ context.Context, _ *pb.Empty) (*pb.AddressesCollection, error) {
 	if s.Daemon.Locked {
 		return nil, src.ErrDaemonIsLocked
@@ -209,8 +211,9 @@ func (s *Server) BroadcastRawTx(_ context.Context, in *pb.RawTransaction) (*pb.N
 }
 
 func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*pb.Mnemonic, error) {
+	var err error
 	// todo add checks that existing wallet is not overridden
-	// check if a keys file already exists
+	// check if a keys file already exists // todo wrap in function for check
 	if utils.CheckIfFileExists(src.PathToKeys) {
 		return nil, errors.New("keys file already exists")
 	}
@@ -223,7 +226,25 @@ func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*p
 	}
 	s.Daemon.Password = []byte(in.EncryptionPassword)
 
-	err := s.Daemon.CreateNewKeys(in.SeedPassphrase)
+	s.Daemon.Locked = false // temporarily set locked to false in order to allow writing to files during process
+	defer func() {
+		if err == nil {
+			return
+		}
+		s.Daemon.Locked = true
+		err = os.Remove(src.PathToKeys)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			// don't kill here try to delete the other file as well
+		}
+		err = os.Remove(src.PathDbWallet)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			// don't kill here try to delete the other file as well
+		}
+	}()
+
+	err = s.Daemon.CreateNewKeys(in.SeedPassphrase)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
@@ -235,22 +256,75 @@ func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*p
 	return &pb.Mnemonic{Mnemonic: s.Daemon.Mnemonic}, nil
 }
 
-func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) (*pb.BoolResponse, error) {
-	if s.Daemon.Locked {
-		return nil, src.ErrDaemonIsLocked
-	}
+func (s *Server) RecoverWallet(_ context.Context, in *pb.RecoverWalletRequest) (*pb.BoolResponse, error) {
+	var err error
 	var response pb.BoolResponse
+	if utils.CheckIfFileExists(src.PathToKeys) {
+		response.Success = false
+		response.Error = "keys file already exists"
+		return &response, errors.New(response.Error)
+	}
+	if utils.CheckIfFileExists(src.PathDbWallet) {
+		return nil, errors.New("wallet file already exists")
+	}
+	if in.EncryptionPassword == "" {
+		response.Success = false
+		response.Error = "encryption password can't be empty"
+		return &response, errors.New(response.Error)
+	}
+	s.Daemon.Password = []byte(in.EncryptionPassword)
 
-	err := s.Daemon.ForceSyncFrom(in.GetHeight())
+	var seedPassphrase string
+	if in.SeedPassphrase != nil {
+		seedPassphrase = *in.SeedPassphrase
+	}
+
+	s.Daemon.Locked = false // temporarily set locked to false in order to allow writing to files during process
+	defer func() {
+		if err == nil {
+			return
+		}
+		s.Daemon.Locked = true
+		err = os.Remove(src.PathToKeys)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			// don't kill here try to delete the other file as well
+		}
+		err = os.Remove(src.PathDbWallet)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			// don't kill here try to delete the other file as well
+		}
+	}()
+
+	err = s.Daemon.RecoverFromSeed(in.Mnemonic, seedPassphrase, in.BirthHeight)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		response.Success = false
 		response.Error = err.Error()
 		return &response, err
 	}
 
-	response.Success = true
+	s.Daemon.ReadyChan <- struct{}{}
+	s.Daemon.Status = pb.Status_STATUS_RUNNING
 
-	return &response, nil
+	response.Success = true
+	return &response, err
+}
+
+func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) (*pb.BoolResponse, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+
+	go func() {
+		err := s.Daemon.ForceSyncFrom(in.GetHeight())
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+		}
+	}()
+
+	return &pb.BoolResponse{Success: true}, nil
 }
 
 func (s *Server) GetMnemonic(_ context.Context, _ *pb.Empty) (*pb.Mnemonic, error) {
@@ -258,6 +332,13 @@ func (s *Server) GetMnemonic(_ context.Context, _ *pb.Empty) (*pb.Mnemonic, erro
 		return nil, src.ErrDaemonIsLocked
 	}
 	return &pb.Mnemonic{Mnemonic: s.Daemon.Mnemonic}, nil
+}
+
+func (s *Server) GetChain(_ context.Context, _ *pb.Empty) (*pb.Chain, error) {
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
+	return convertChainParam(src.ChainParams), nil
 }
 
 func (s *Server) Start() error {

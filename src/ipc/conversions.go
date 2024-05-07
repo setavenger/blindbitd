@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/utils"
@@ -52,4 +53,21 @@ func convertToRecipients(recipients []*pb.TransactionRecipient) []*src.Recipient
 	}
 
 	return convertedRecipients
+}
+
+func convertChainParam(params *chaincfg.Params) *pb.Chain {
+	var chain pb.Chain
+
+	switch params.Name {
+	case chaincfg.MainNetParams.Name:
+		chain.Chain = pb.ChainEnum_Mainnet
+	case chaincfg.TestNet3Params.Name:
+		chain.Chain = pb.ChainEnum_Testnet
+	case chaincfg.SigNetParams.Name:
+		chain.Chain = pb.ChainEnum_Signet
+	case chaincfg.RegressionNetParams.Name:
+		chain.Chain = pb.ChainEnum_Regtest
+	}
+
+	return &chain
 }

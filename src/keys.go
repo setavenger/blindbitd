@@ -29,7 +29,7 @@ func (k *Keys) DeSerialise(data []byte) error {
 	return nil
 }
 
-func CreateNewKeys(passphrase string) (*Keys, error) {
+func CreateNewKeys(seedPassphrase string) (*Keys, error) {
 	// todo write test for this, requires a recover function that recreates the keys from a mnemonic
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
@@ -45,8 +45,15 @@ func CreateNewKeys(passphrase string) (*Keys, error) {
 	var result Keys
 	result.Mnemonic = mnemonic
 
+	return KeysFromMnemonic(mnemonic, seedPassphrase)
+}
+
+func KeysFromMnemonic(mnemonic, seedPassphrase string) (*Keys, error) {
+	var result Keys
+	result.Mnemonic = mnemonic
+
 	// Generate a Bip32 HD wallet for the mnemonic and a user supplied password
-	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, passphrase)
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, seedPassphrase)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
@@ -68,6 +75,7 @@ func CreateNewKeys(passphrase string) (*Keys, error) {
 	result.SpendSecretKey = keys.SpendSecretKey
 
 	return &result, err
+
 }
 
 func DeriveKeysFromMaster(master *hdkeychain.ExtendedKey) (*Keys, error) {

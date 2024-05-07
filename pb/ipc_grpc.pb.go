@@ -33,7 +33,9 @@ const (
 	IpcService_GetMnemonic_FullMethodName                   = "/ipc.IpcService/GetMnemonic"
 	IpcService_SetMnemonic_FullMethodName                   = "/ipc.IpcService/SetMnemonic"
 	IpcService_CreateNewWallet_FullMethodName               = "/ipc.IpcService/CreateNewWallet"
+	IpcService_RecoverWallet_FullMethodName                 = "/ipc.IpcService/RecoverWallet"
 	IpcService_ForceRescanFromHeight_FullMethodName         = "/ipc.IpcService/ForceRescanFromHeight"
+	IpcService_GetChain_FullMethodName                      = "/ipc.IpcService/GetChain"
 )
 
 // IpcServiceClient is the client API for IpcService service.
@@ -55,7 +57,9 @@ type IpcServiceClient interface {
 	GetMnemonic(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Mnemonic, error)
 	SetMnemonic(ctx context.Context, in *Mnemonic, opts ...grpc.CallOption) (*BoolResponse, error)
 	CreateNewWallet(ctx context.Context, in *NewWalletRequest, opts ...grpc.CallOption) (*Mnemonic, error)
+	RecoverWallet(ctx context.Context, in *RecoverWalletRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	ForceRescanFromHeight(ctx context.Context, in *RescanRequest, opts ...grpc.CallOption) (*BoolResponse, error)
+	GetChain(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Chain, error)
 }
 
 type ipcServiceClient struct {
@@ -192,9 +196,27 @@ func (c *ipcServiceClient) CreateNewWallet(ctx context.Context, in *NewWalletReq
 	return out, nil
 }
 
+func (c *ipcServiceClient) RecoverWallet(ctx context.Context, in *RecoverWalletRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, IpcService_RecoverWallet_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ipcServiceClient) ForceRescanFromHeight(ctx context.Context, in *RescanRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
 	out := new(BoolResponse)
 	err := c.cc.Invoke(ctx, IpcService_ForceRescanFromHeight_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ipcServiceClient) GetChain(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Chain, error) {
+	out := new(Chain)
+	err := c.cc.Invoke(ctx, IpcService_GetChain_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +242,9 @@ type IpcServiceServer interface {
 	GetMnemonic(context.Context, *Empty) (*Mnemonic, error)
 	SetMnemonic(context.Context, *Mnemonic) (*BoolResponse, error)
 	CreateNewWallet(context.Context, *NewWalletRequest) (*Mnemonic, error)
+	RecoverWallet(context.Context, *RecoverWalletRequest) (*BoolResponse, error)
 	ForceRescanFromHeight(context.Context, *RescanRequest) (*BoolResponse, error)
+	GetChain(context.Context, *Empty) (*Chain, error)
 	mustEmbedUnimplementedIpcServiceServer()
 }
 
@@ -270,8 +294,14 @@ func (UnimplementedIpcServiceServer) SetMnemonic(context.Context, *Mnemonic) (*B
 func (UnimplementedIpcServiceServer) CreateNewWallet(context.Context, *NewWalletRequest) (*Mnemonic, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateNewWallet not implemented")
 }
+func (UnimplementedIpcServiceServer) RecoverWallet(context.Context, *RecoverWalletRequest) (*BoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RecoverWallet not implemented")
+}
 func (UnimplementedIpcServiceServer) ForceRescanFromHeight(context.Context, *RescanRequest) (*BoolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ForceRescanFromHeight not implemented")
+}
+func (UnimplementedIpcServiceServer) GetChain(context.Context, *Empty) (*Chain, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetChain not implemented")
 }
 func (UnimplementedIpcServiceServer) mustEmbedUnimplementedIpcServiceServer() {}
 
@@ -538,6 +568,24 @@ func _IpcService_CreateNewWallet_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_RecoverWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecoverWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).RecoverWallet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_RecoverWallet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).RecoverWallet(ctx, req.(*RecoverWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IpcService_ForceRescanFromHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RescanRequest)
 	if err := dec(in); err != nil {
@@ -552,6 +600,24 @@ func _IpcService_ForceRescanFromHeight_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IpcServiceServer).ForceRescanFromHeight(ctx, req.(*RescanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IpcService_GetChain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).GetChain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_GetChain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).GetChain(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -620,8 +686,16 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IpcService_CreateNewWallet_Handler,
 		},
 		{
+			MethodName: "RecoverWallet",
+			Handler:    _IpcService_RecoverWallet_Handler,
+		},
+		{
 			MethodName: "ForceRescanFromHeight",
 			Handler:    _IpcService_ForceRescanFromHeight_Handler,
+		},
+		{
+			MethodName: "GetChain",
+			Handler:    _IpcService_GetChain_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

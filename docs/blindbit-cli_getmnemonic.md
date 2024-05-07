@@ -1,19 +1,15 @@
-## blindbit-cli shutdown
+## blindbit-cli getmnemonic
 
-Shuts down the daemon
-
-### Synopsis
-
-Daemon has to be unlocked. This command shuts down the daemon.
+CAUTION: Shows the wallets mnemonic
 
 ```
-blindbit-cli shutdown [flags]
+blindbit-cli getmnemonic [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for shutdown
+  -h, --help   help for getmnemonic
 ```
 
 ### Options inherited from parent commands

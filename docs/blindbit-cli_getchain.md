@@ -1,19 +1,15 @@
-## blindbit-cli shutdown
+## blindbit-cli getchain
 
-Shuts down the daemon
-
-### Synopsis
-
-Daemon has to be unlocked. This command shuts down the daemon.
+Gets the chain on which the daemon is running
 
 ```
-blindbit-cli shutdown [flags]
+blindbit-cli getchain [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for shutdown
+  -h, --help   help for getchain
 ```
 
 ### Options inherited from parent commands

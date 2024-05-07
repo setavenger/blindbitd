@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/setavenger/blindbitd/cli/lib"
@@ -13,11 +14,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// createwalletCmd represents the createwallet command
+// allow seed passphrases only after thorough testing
 var (
-	showMnemonic      bool
-	useSeedPassphrase bool
-	createwalletCmd   = &cobra.Command{
+	showMnemonic bool
+	//useSeedPassphrase bool
+
+	// createwalletCmd represents the createwallet command
+	createwalletCmd = &cobra.Command{
 		Use:   "createwallet",
 		Short: "Create a new wallet",
 		Long: `Create a new wallet in the daemon. This should fail if the daemon already contains a wallet.
@@ -44,22 +47,31 @@ To add a passphrase to your seed set the --seedpass flag (not extensively tested
 				log.Fatalln("Error reading password")
 			}
 			fmt.Println()
-
-			var seedPassphrase string
-			if useSeedPassphrase {
-				fmt.Println("Enter your seed passphrase: ")
-				seedPassphraseBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-				if err != nil {
-					log.Fatalln("Error reading seed passphrase")
-				}
-				seedPassphrase = string(seedPassphraseBytes)
-				fmt.Println()
+			fmt.Print("Confirm password: ")
+			passworConfirmBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				log.Fatalln("Error reading password")
 			}
+			fmt.Println()
+			if !bytes.Equal(passwordBytes, passworConfirmBytes) {
+				log.Fatalln("Passwords do not match")
+			}
+
+			// todo bring back once tested thoroughly
+			var seedPassphrase string
+			//if useSeedPassphrase {
+			//	fmt.Print("Enter your seed passphrase: ")
+			//	seedPassphraseBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			//	if err != nil {
+			//		log.Fatalln("Error reading seed passphrase")
+			//	}
+			//	seedPassphrase = string(seedPassphraseBytes)
+			//	fmt.Println()
+			//}
 
 			response, err := client.CreateNewWallet(context.Background(), &pb.NewWalletRequest{EncryptionPassword: string(passwordBytes), SeedPassphrase: seedPassphrase})
 			if err != nil {
-				fmt.Println(err)
-				return
+				log.Fatalln(err)
 			}
 
 			if response.Mnemonic == "" {
@@ -77,14 +89,6 @@ To add a passphrase to your seed set the --seedpass flag (not extensively tested
 func init() {
 	RootCmd.AddCommand(createwalletCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
 	createwalletCmd.PersistentFlags().BoolVar(&showMnemonic, "show", false, "show the wallet seed phrase after wallet creation")
-	createwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// createwalletCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//createwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
 }

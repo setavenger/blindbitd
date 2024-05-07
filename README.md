@@ -2,7 +2,9 @@
 
 Receive and send functionality. This is the daemon for the BlindBit Wallet. The daemon can be controlled
 with [blindbit-cli](./cli/README.md). Still in early testing, only use with funds you can
-afford to lose.
+afford to lose. When started and unlocked the daemon will run continuously in the background using minimal resources
+while not processing. When actively scanning a block more resources will be needed. The daemon periodically checks for
+new blocks and also listens to Electrum's `blockchain.headers.subscribe`.
 
 IMPORTANT: The wallet data and keys are only encrypted when on disk. For scanning purposes the private keys are
 currently always kept in memory. In future there will be a separate spending password that encrypts the spend secret key
@@ -12,7 +14,7 @@ and the mnemonic separately.
 
 ### Requirements
 
-- go 1.21.9 installed 
+- go 1.21.9 installed
 - access to an electrum server
 - access to a blindbit style indexing server like [BlindBit Oracle](https://github.com/setavenger/blindbit-oracle)
     - I'm hosting a signet BlindBit-Oracle server here: signet.blindbit.snblago.com:8000
@@ -42,9 +44,14 @@ $ make build-cli
 ```
 
 ### Run
-The daemon requires a config toml file `blindbit.toml` to be present in its datadir. The socket to the daemon is created in `<datadir/run/blindbit.socket>`. The path to the socket has to be passed to `blindbit-cli` in order to access the daemon. The default path for blindbitd is `~/.blindbitd`. For both programs the default path forthe socket is set to `~/.blindbitd/run/blindbit.socket`.
+
+The daemon requires a config toml file `blindbit.toml` to be present in its datadir. The socket to the daemon is created
+in `<datadir/run/blindbit.socket>`. The path to the socket has to be passed to `blindbit-cli` in order to access the
+daemon. The default path for blindbitd is `~/.blindbitd`. For both programs the default path forthe socket is set
+to `~/.blindbitd/run/blindbit.socket`.
 
 You can then run with:
+
 ```console
 $ bin/blindbitd
 ```
@@ -52,6 +59,12 @@ $ bin/blindbitd
 ```console
 $ bin/blindbitd-cli status
 ```
+
+## Controlling the daemon
+
+Currently, the daemon is only exposed via a unix socket. The [blindbit-cli](./cli/README.md) controls the flow of the
+daemon. On initial startup you can use `createwallet` command to either initialise a new wallet or recover from a
+mnemonic. `listaddresses` shows your address. You can use `createtransaction` to send to an address.
 
 
 ## Todo
