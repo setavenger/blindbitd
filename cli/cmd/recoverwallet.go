@@ -97,7 +97,7 @@ func init() {
 	RootCmd.AddCommand(recoverwalletCmd)
 
 	recoverwalletCmd.PersistentFlags().Uint64Var(&birthHeight, "birthheight", 0, "set the birth height for a recovered wallet")
-	createwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
+	recoverwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
 
 	err := cobra.MarkFlagRequired(recoverwalletCmd.PersistentFlags(), "birthheight")
 	if err != nil {

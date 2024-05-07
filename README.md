@@ -66,7 +66,6 @@ Currently, the daemon is only exposed via a unix socket. The [blindbit-cli](./cl
 daemon. On initial startup you can use `createwallet` command to either initialise a new wallet or recover from a
 mnemonic. `listaddresses` shows your address. You can use `createtransaction` to send to an address.
 
-
 ## Todo
 
 ### Priority 1
@@ -107,3 +106,10 @@ mnemonic. `listaddresses` shows your address. You can use `createtransaction` to
 - [x] Broadcast raw Tx
 - [ ] Pause/Resume scanning
 - [x] List UTXOs by label
+
+## Roadmap
+
+- [ ] Conceptualise a way how to potentially run the daemon in an Umbrel like setup.
+    - Would enable non-power users to have easy access to Silent Payments
+    - Run in a scan-only mode; spend secret key and mnemonic are never shared with the daemon
+    - Spending could occur through a separate channel

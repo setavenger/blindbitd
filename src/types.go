@@ -72,6 +72,7 @@ func (lm *LabelsMapping) UnmarshalJSON(data []byte) error {
 
 // UTXOMapping
 // the key is the utxos (txid||vout)
+// todo marshalling or unmarshalling seems to have some issues. Investigate root cause
 type UTXOMapping map[[36]byte]struct{}
 
 func (um *UTXOMapping) MarshalJSON() ([]byte, error) {
