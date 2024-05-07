@@ -150,6 +150,7 @@ func (w *Wallet) AddUTXOs(utxos []*OwnedUTXO) error {
 	for _, utxo := range utxos {
 		key, err := utxo.GetKey()
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return err
 		}
 		_, exists := w.UTXOMapping[key]
@@ -247,19 +248,30 @@ func (w *Wallet) CheckAndInitialiseFields() error {
 	if w.ChangeLabel == nil {
 		_, err := w.GenerateChangeLabel()
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return err
 		}
 	}
 
-	if w.UTXOMapping == nil {
+	if len(w.UTXOMapping) == 0 {
 		w.UTXOMapping = make(map[[36]byte]struct{})
+		var newCollection UtxoCollection
 		for _, utxo := range w.UTXOs {
 			key, err := utxo.GetKey()
 			if err != nil {
+				logging.ErrorLogger.Println(err)
 				return err
+			}
+			_, ok := w.UTXOMapping[key]
+			if !ok {
+				// if an utxo is already present remove it from the set of UTXOs
+				// or actually create a new slice only with valid utxos
+				// might have happened due to prior bug where duplicate utxos were added on rescan
+				newCollection = append(newCollection, utxo)
 			}
 			w.UTXOMapping[key] = struct{}{}
 		}
+		w.UTXOs = newCollection
 	}
 
 	_, err := w.GenerateAddress()

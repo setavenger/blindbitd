@@ -16,7 +16,7 @@ import (
 
 // allow seed passphrases only after thorough testing
 var (
-	showMnemonic bool
+	hideMnemonic bool
 	//useSeedPassphrase bool
 
 	// createwalletCmd represents the createwallet command
@@ -77,7 +77,7 @@ To add a passphrase to your seed set the --seedpass flag (not extensively tested
 			if response.Mnemonic == "" {
 				log.Fatalln("Error: mnemonic was empty without throwing error. Check daemon logs.")
 			}
-			if showMnemonic {
+			if !hideMnemonic {
 				fmt.Println()
 				fmt.Println("Mnemonic:", response.Mnemonic)
 				fmt.Println("The 12/24 words above are the access to your funds.\nDon't publish or share them, you risk loosing your funds.")
@@ -89,6 +89,6 @@ To add a passphrase to your seed set the --seedpass flag (not extensively tested
 func init() {
 	RootCmd.AddCommand(createwalletCmd)
 
-	createwalletCmd.PersistentFlags().BoolVar(&showMnemonic, "show", false, "show the wallet seed phrase after wallet creation")
+	createwalletCmd.PersistentFlags().BoolVar(&hideMnemonic, "hide", false, "show the wallet seed phrase after wallet creation")
 	//createwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
 }
