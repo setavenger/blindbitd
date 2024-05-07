@@ -1,21 +1,22 @@
-## blindbit-cli broadcast
+## blindbit-cli overview
 
-broadcast a raw transaction
+Get an overview over your wallet
 
 ### Synopsis
 
-This command allows you to broadcast any valid transaction 
-to the wider bitcoin network.
+Displays the status of the daemon, 
+the height to which the daemon is synced, 
+the chain on which the daemon is running,
+the current balance, and the first 5 addresses.
 
 ```
-blindbit-cli broadcast [flags]
+blindbit-cli overview [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help           help for broadcast
-      --rawtx string   transaction to broadcast in hex format 
+  -h, --help   help for overview
 ```
 
 ### Options inherited from parent commands

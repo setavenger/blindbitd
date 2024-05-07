@@ -1,21 +1,16 @@
-## blindbit-cli broadcast
+## blindbit-cli rescan
 
-broadcast a raw transaction
-
-### Synopsis
-
-This command allows you to broadcast any valid transaction 
-to the wider bitcoin network.
+calling this triggers a rescan of the chain from height
 
 ```
-blindbit-cli broadcast [flags]
+blindbit-cli rescan [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help           help for broadcast
-      --rawtx string   transaction to broadcast in hex format 
+      --height uint   set the height from which the wallet should scan (default 1)
+  -h, --help          help for rescan
 ```
 
 ### Options inherited from parent commands
