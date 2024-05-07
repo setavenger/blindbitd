@@ -16,13 +16,13 @@ import (
 
 // allow seed passphrases only after thorough testing
 var (
-	birthHeight uint64
-	//useSeedPassphrase bool
+	birthHeight       uint64
+	useSeedPassphrase bool
 
 	recoverwalletCmd = &cobra.Command{
 		Use:   "recoverwallet",
 		Short: "Recover a wallet from mnemonic seed",
-		Long:  `birthheight is required if you want to scan the entire chain then set it to one`, // this could be changed to scan from a certain activation height unless explicitly overridden
+		Long:  `birthheight is required if you want to scan the entire chain then set it to one`, // this could be changed to scan from a certain Bip352 activation height unless explicitly overridden
 		Run: func(cmd *cobra.Command, args []string) {
 			client, conn := lib.NewClient(socketPath)
 			defer func(conn *grpc.ClientConn) {
@@ -54,11 +54,20 @@ var (
 
 			// todo bring back once tested thoroughly
 			var seedPassphrase string
+			if useSeedPassphrase {
+				fmt.Print("Enter your seed passphrase: ")
+				seedPassphraseBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				if err != nil {
+					log.Fatalln("Error reading seed passphrase")
+				}
+				seedPassphrase = string(seedPassphraseBytes)
+				fmt.Println()
+			}
 
 			fmt.Print("Input mnemonic: ")
 			mnemonicBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 			if err != nil {
-				log.Fatalln("Error reading password")
+				log.Fatalln("Error reading mnemonic")
 			}
 			fmt.Println()
 
@@ -88,7 +97,7 @@ func init() {
 	RootCmd.AddCommand(recoverwalletCmd)
 
 	recoverwalletCmd.PersistentFlags().Uint64Var(&birthHeight, "birthheight", 0, "set the birth height for a recovered wallet")
-	//createwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
+	createwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
 
 	err := cobra.MarkFlagRequired(recoverwalletCmd.PersistentFlags(), "birthheight")
 	if err != nil {

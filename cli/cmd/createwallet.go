@@ -60,7 +60,7 @@ To add a passphrase to your seed set the --seedpass flag (not extensively tested
 			// todo bring back once tested thoroughly
 			var seedPassphrase string
 			//if useSeedPassphrase {
-			//	fmt.Println("Enter your seed passphrase: ")
+			//	fmt.Print("Enter your seed passphrase: ")
 			//	seedPassphraseBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 			//	if err != nil {
 			//		log.Fatalln("Error reading seed passphrase")

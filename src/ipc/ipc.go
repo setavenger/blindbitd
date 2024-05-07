@@ -118,6 +118,8 @@ func (s *Server) ListUTXOs(_ context.Context, _ *pb.Empty) (*pb.UTXOCollection, 
 	return &pb.UTXOCollection{Utxos: convertWalletUTXOs(s.Daemon.Wallet.UTXOs, s.Daemon.Wallet.LabelsMapping)}, nil
 }
 
+// ListAddresses
+// returns the addresses of the wallet. The main address is first and the labels are returned sorted by m
 func (s *Server) ListAddresses(_ context.Context, _ *pb.Empty) (*pb.AddressesCollection, error) {
 	if s.Daemon.Locked {
 		return nil, src.ErrDaemonIsLocked
@@ -314,18 +316,15 @@ func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) 
 	if s.Daemon.Locked {
 		return nil, src.ErrDaemonIsLocked
 	}
-	var response pb.BoolResponse
 
-	err := s.Daemon.ForceSyncFrom(in.GetHeight())
-	if err != nil {
-		response.Success = false
-		response.Error = err.Error()
-		return &response, err
-	}
+	go func() {
+		err := s.Daemon.ForceSyncFrom(in.GetHeight())
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+		}
+	}()
 
-	response.Success = true
-
-	return &response, nil
+	return &pb.BoolResponse{Success: true}, nil
 }
 
 func (s *Server) GetMnemonic(_ context.Context, _ *pb.Empty) (*pb.Mnemonic, error) {

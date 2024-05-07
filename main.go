@@ -87,7 +87,7 @@ func main() {
 			return
 		}
 	} else {
-		//  does *not* exist
+		// does *not* exist
 		d.Status = pb.Status_STATUS_NO_WALLET
 		logging.InfoLogger.Println("Please create new wallet...")
 		select {

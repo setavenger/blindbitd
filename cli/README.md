@@ -22,20 +22,20 @@ The daemon will also be expanded, stay tuned...
     - [x] single recipient
     - [ ] multi recipients
 - [x] BroadcastRawTx
-- [ ] GetMnemonic
-- [ ] CreateNewWallet
-    - [ ] RecoverWallet (SetMnemonic)
+- [x] GetMnemonic
+- [x] CreateNewWallet
+    - [x] RecoverWallet (SetMnemonic)
     - [x] CreateNewWallet
-- [ ] ForceRescanFromHeight
+- [x] ForceRescanFromHeight
 - [x] GetChain
 
 ### Priority 2
 
-- [ ] Overview (holistic wrapper to show key information in one view)
+- [x] Overview (holistic wrapper to show key information in one view)
 
 ## General Todos
 
-- [ ] check that encryption passwords match, force a confirmation input
+- [x] check that encryption passwords match, force a confirmation input
 - [ ] take care of modules deprecation warnings
 - [ ] make outputs pretty and easy to understand
     - Format outputs in tables to make data more clear and appear more structured

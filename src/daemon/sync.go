@@ -241,7 +241,7 @@ func (d *Daemon) SyncToTip(chainTip uint64) error {
 		logging.ErrorLogger.Println(err)
 		return err
 	}
-	return nil
+	return err
 }
 
 func (d *Daemon) ForceSyncFrom(fromHeight uint64) error {
@@ -292,7 +292,7 @@ func (d *Daemon) ForceSyncFrom(fromHeight uint64) error {
 		logging.ErrorLogger.Println(err)
 		return err
 	}
-	return nil
+	return err
 }
 
 func (d *Daemon) ContinuousScan() error {

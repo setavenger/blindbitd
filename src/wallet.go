@@ -22,10 +22,10 @@ type Wallet struct {
 	BirthHeight    uint64          `json:"birth_height,omitempty"`
 	LastScanHeight uint64          `json:"last_scan,omitempty"`
 	UTXOs          UtxoCollection  `json:"utxos,omitempty"`
-	Labels         []*bip352.Label `json:"labels"`       // Labels contains all labels except for the change label
-	ChangeLabel    *bip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
-	NextLabelM     uint32          `json:"next_label_m"` // NextLabelM indicates which m will be used to derive the next label
-	PubKeysToWatch [][32]byte      `json:"pub_keys_to_watch"`
+	Labels         []*bip352.Label `json:"labels"`            // Labels contains all labels except for the change label
+	ChangeLabel    *bip352.Label   `json:"change_label"`      // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
+	NextLabelM     uint32          `json:"next_label_m"`      // NextLabelM indicates which m will be used to derive the next label
+	PubKeysToWatch [][32]byte      `json:"pub_keys_to_watch"` // todo this can be taken out, we can check for new payments to old pub-keys via electrum
 	Addresses      Addresses       `json:"addresses"`
 	LabelsMapping  LabelsMapping   `json:"labels_mapping"` // never show LabelsMapping addresses to the user - it includes the change label which should NEVER be shown to normal users
 	UTXOMapping    UTXOMapping     `json:"utxo_mapping"`   // used to keep track of utxos and not add the same twice
