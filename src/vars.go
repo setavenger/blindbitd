@@ -22,4 +22,7 @@ var (
 
 	// ChainParams defines on which chain the wallet runs
 	ChainParams *chaincfg.Params
+
+	// ElectrumTorProxyHost if the host addr is given, tor will be used normally "127.0.0.1:9050". This is also the default setting
+	ElectrumTorProxyHost = ""
 )

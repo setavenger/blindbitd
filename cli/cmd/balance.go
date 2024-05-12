@@ -75,11 +75,11 @@ var (
 
 			for _, utxo := range filteredUTXOs {
 				if listUTXOs {
-					label := ""
-					if utxo.Label != nil {
-						label = *utxo.Label
+					output := fmt.Sprintf("%x:%d - %s - %s", utxo.Txid, utxo.Vout, lib.ConvertIntToThousandString(int(utxo.Amount)), utxo.UtxoState)
+					if utxo.Label != nil && utxo.Label.Comment != "" {
+						output += fmt.Sprintf(" - Label: %s", utxo.Label.Comment)
 					}
-					fmt.Printf("%x:%d - %s - %s - %s\n", utxo.Txid, utxo.Vout, lib.ConvertIntToThousandString(int(utxo.Amount)), utxo.UtxoState, label)
+					fmt.Println(output)
 				} else {
 					// todo if another case opens up change this
 					balance += utxo.Amount

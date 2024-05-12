@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/go-bip352"
 )
 
@@ -68,6 +70,20 @@ func (lm *LabelsMapping) UnmarshalJSON(data []byte) error {
 		(*lm)[key] = v
 	}
 	return nil
+}
+
+func (lm *LabelsMapping) GetLabelByPubKey(labelPubKey [33]byte) *Label {
+	if lm == nil {
+		logging.ErrorLogger.Println("labels mapping is nil")
+		panic(errors.New("labels mapping is nil")) // todo change to return ""/nil after initial test phase
+	}
+	label, ok := (*lm)[labelPubKey]
+	if !ok {
+		// We normally call this function expecting a result
+		logging.WarningLogger.Println("label not found")
+		return nil
+	}
+	return &label
 }
 
 // UTXOMapping

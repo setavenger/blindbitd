@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/checksum0/go-electrum/electrum"
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/blindbitd/src/utils"
+	"github.com/setavenger/go-electrum/electrum"
 )
 
 type Daemon struct {
@@ -101,6 +101,10 @@ func (d *Daemon) LoadDataFromDB() error {
 func (d *Daemon) Shutdown() error {
 	// todo save all data to a files
 	fmt.Println("Process shutting down")
+
+	if d.ClientElectrum != nil {
+		d.ClientElectrum.Shutdown()
+	}
 	if d.Status == pb.Status_STATUS_NO_WALLET {
 		// we don't store anything if the wallet was not initialised yet
 		return nil

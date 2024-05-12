@@ -51,8 +51,10 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 			return nil, err
 		}
 
-		// todo we do this for now until the filters are changed to the 32byte x-only taproot pub keys
-		potentialOutputs = append(potentialOutputs, append([]byte{0x51, 0x20}, outputPubKey[:]...))
+		// todo we do this for now until the filters are changed to the 32byte x-only taproot pub keys (resolved)
+		potentialOutputs = append(potentialOutputs, outputPubKey[:])
+		// todo add option to skip precomputed labels and just pull all found outputs directly.
+		//  For large numbers of labels and situations where bandwidth is not a constrained
 		for _, label := range labelsToCheck {
 
 			outputPubKey33 := bip352.ConvertToFixedLength33(append([]byte{0x02}, outputPubKey[:]...))
@@ -64,7 +66,8 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 				logging.ErrorLogger.Println(err)
 				panic(err)
 			}
-			potentialOutputs = append(potentialOutputs, append([]byte{0x51, 0x20}, labelPotentialOutputPrep[1:]...))
+
+			potentialOutputs = append(potentialOutputs, labelPotentialOutputPrep[1:])
 
 			// add label with uneven parity as well
 			var negatedLabelPubKey [33]byte
@@ -73,18 +76,16 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 				logging.ErrorLogger.Println(err)
 				panic(err)
 			}
-			labelPotentialOutputPrep, err = bip352.AddPublicKeys(outputPubKey33, negatedLabelPubKey)
+
+			var labelPotentialOutputPrepNegated [33]byte
+			labelPotentialOutputPrepNegated, err = bip352.AddPublicKeys(outputPubKey33, negatedLabelPubKey)
 			if err != nil {
 				logging.ErrorLogger.Println(err)
 				panic(err)
 			}
-			potentialOutputs = append(potentialOutputs, append([]byte{0x51, 0x20}, labelPotentialOutputPrep[1:]...))
-		}
-	}
 
-	// todo change back to assigning via index slice[i] once we are sure how long a slice will be; can we be sure how long it will always be?
-	for _, scriptsToWatch := range d.Wallet.PubKeysToWatch {
-		potentialOutputs = append(potentialOutputs, append([]byte{0x51, 0x20}, scriptsToWatch[:]...))
+			potentialOutputs = append(potentialOutputs, labelPotentialOutputPrepNegated[1:])
+		}
 	}
 
 	if len(potentialOutputs) == 0 {
@@ -292,6 +293,8 @@ func (d *Daemon) ForceSyncFrom(fromHeight uint64) error {
 		logging.ErrorLogger.Println(err)
 		return err
 	}
+	logging.InfoLogger.Println("Rescan complete")
+	logging.InfoLogger.Println("Balance:", d.Wallet.FreeBalance())
 	return err
 }
 
@@ -301,13 +304,16 @@ func (d *Daemon) ContinuousScan() error {
 		select {
 		case newBlock := <-d.NewBlockChan:
 			<-time.After(5 * time.Second) // delay, indexing server does not index immediately after a block is found
-
+			oldBalance := d.Wallet.FreeBalance()
 			err := d.SyncToTip(uint64(newBlock.Height))
 			if err != nil {
 				logging.ErrorLogger.Println(err)
 				return err
 			}
-			logging.InfoLogger.Printf("New balance: %d\n", d.Wallet.FreeBalance())
+			newBalance := d.Wallet.FreeBalance()
+			if oldBalance != newBalance {
+				logging.InfoLogger.Printf("New balance: %d\n", newBalance)
+			}
 		case <-time.NewTicker(5 * time.Minute).C:
 			// todo is this needed if NewBlockChan is very robust?
 			// check every 5 minutes anyway
