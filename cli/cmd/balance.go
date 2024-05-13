@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"log"
+	"os"
+	"text/tabwriter"
 )
 
 // balanceCmd represents the balance command
@@ -59,8 +61,6 @@ var (
 
 			var filteredUTXOs []*pb.OwnedUTXO
 
-			var balance uint64
-
 			if listAll {
 				filteredUTXOs = utxos.Utxos
 			} else {
@@ -73,24 +73,42 @@ var (
 				}
 			}
 
-			for _, utxo := range filteredUTXOs {
-				if listUTXOs {
-					output := fmt.Sprintf("%x:%d - %s - %s", utxo.Txid, utxo.Vout, lib.ConvertIntToThousandString(int(utxo.Amount)), utxo.UtxoState)
+			if listUTXOs {
+				writer := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				_, err := fmt.Fprintln(writer, "UTXO Outpoint\tAmount\tState\tLabel")
+				if err != nil {
+					log.Fatalln(err)
+				}
+
+				for _, utxo := range filteredUTXOs {
+					amount := lib.ConvertIntToThousandString(int(utxo.Amount))
+					output := fmt.Sprintf("%x:%d\t%s\t%s", utxo.Txid, utxo.Vout, amount, utxo.UtxoState)
 					if utxo.Label != nil && utxo.Label.Comment != "" {
-						output += fmt.Sprintf(" - Label: %s", utxo.Label.Comment)
+						output += fmt.Sprintf("\t%s", utxo.Label.Comment)
+					} else {
+						output += "\t"
 					}
-					fmt.Println(output)
-				} else {
-					// todo if another case opens up change this
+					_, err := fmt.Fprintln(writer, output)
+					if err != nil {
+						log.Fatalln(err)
+					}
+				}
+
+				err = writer.Flush()
+				if err != nil {
+					log.Fatalln(err)
+				}
+				return
+			} else {
+				var balance uint64
+
+				for _, utxo := range filteredUTXOs {
 					balance += utxo.Amount
 				}
-			}
-
-			if listUTXOs {
+				fmt.Printf("Balance is %s\n", lib.ConvertIntToThousandString(int(balance)))
 				return
 			}
 
-			fmt.Printf("Balance is %s\n", lib.ConvertIntToThousandString(int(balance)))
 		},
 	}
 )

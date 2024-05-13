@@ -14,6 +14,8 @@ IMPORTANT: Currently there is no good way to check for spent UTXOs. blindbitd ch
 scriptPubKeys balance. Using public electrum servers will leak privacy! Per default Tor is enabled for requests to the
 electrum server. It can be disabled in cases were one trusts the electrum server.
 
+IMPORTANT: As this is still work in progress breaking changes can and probably will happen at any time.
+
 ## Setup
 
 ### Requirements
@@ -102,8 +104,8 @@ address.
 - [ ] Load UTXOs from txid
     - input: a txid supplied by the sender
     - output: success/error
-    - flow: The user receives a txid from the sender. The daemon sources the tx (origin not clear yet) and checks whether an utxo belongs to the
-      wallet.
+    - flow: The user receives a txid from the sender. The daemon sources the tx (origin not clear yet) and checks
+      whether an utxo belongs to the wallet.
     - note: This would be in addition to out-of-band notifications. In case some wallets don't create out-of-band
       notifications. A txid can always be shared.
 

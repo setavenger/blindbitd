@@ -317,13 +317,7 @@ func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) 
 		return nil, src.ErrDaemonIsLocked
 	}
 
-	go func() {
-		err := s.Daemon.ForceSyncFrom(in.GetHeight())
-		if err != nil {
-			logging.ErrorLogger.Println(err)
-		}
-	}()
-
+	s.Daemon.TriggerRescanChan <- in.GetHeight()
 	return &pb.BoolResponse{Success: true}, nil
 }
 

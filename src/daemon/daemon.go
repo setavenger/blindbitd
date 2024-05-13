@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
@@ -15,33 +14,37 @@ import (
 )
 
 type Daemon struct {
-	Status         pb.Status
-	Password       []byte
-	Locked         bool
-	ReadyChan      chan struct{} // for the startup signal; either unlocking or setting password on initial startup
-	ShutdownChan   chan struct{}
-	Mnemonic       string
-	ClientElectrum *electrum.Client
-	ClientBlindBit *networking.ClientBlindBit
-	Wallet         *src.Wallet
-	NewBlockChan   <-chan *electrum.SubscribeHeadersResult
+	Status            pb.Status
+	Password          []byte
+	Locked            bool
+	ReadyChan         chan struct{} // for the startup signal; either unlocking or setting password on initial startup
+	ShutdownChan      chan struct{}
+	Mnemonic          string
+	ClientElectrum    *electrum.Client
+	ClientBlindBit    *networking.ClientBlindBit
+	Wallet            *src.Wallet
+	NewBlockChan      <-chan *electrum.SubscribeHeadersResult
+	TriggerRescanChan chan uint64
 }
 
-func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client, network *chaincfg.Params) *Daemon {
+func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client) (*Daemon, error) {
 	channel, err := clientElectrum.SubscribeHeaders(context.Background())
 	if err != nil {
-		panic(err)
+		logging.ErrorLogger.Println(err)
+		return nil, err
 	}
-	return &Daemon{
-		Status:         pb.Status_STATUS_UNSPECIFIED,
-		Wallet:         wallet,
-		ClientBlindBit: clientBlindBit,
-		ClientElectrum: clientElectrum,
-		Locked:         true,
-		ReadyChan:      make(chan struct{}),
-		ShutdownChan:   make(chan struct{}),
-		NewBlockChan:   channel,
+	daemon := Daemon{
+		Status:            pb.Status_STATUS_UNSPECIFIED,
+		Wallet:            wallet,
+		ClientBlindBit:    clientBlindBit,
+		ClientElectrum:    clientElectrum,
+		Locked:            true,
+		ReadyChan:         make(chan struct{}),
+		ShutdownChan:      make(chan struct{}),
+		NewBlockChan:      channel,
+		TriggerRescanChan: make(chan uint64),
 	}
+	return &daemon, nil
 }
 
 func (d *Daemon) Run() error {

@@ -50,10 +50,15 @@ func main() {
 	clientBlindBit := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
 	clientElectrum, err := networking.CreateElectrumClient()
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		panic(err)
 	}
 
-	d := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum, src.ChainParams)
+	d, err := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		panic(err)
+	}
 	d.Status = pb.Status_STATUS_STARTING
 
 	defer func() {

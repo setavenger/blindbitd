@@ -149,10 +149,6 @@ func (w *Wallet) GenerateChangeLabel() (string, error) {
 }
 
 func (w *Wallet) AddUTXOs(utxos []*OwnedUTXO) error {
-	logging.DebugLogger.Println("Mapping Ante")
-	for key := range w.UTXOMapping {
-		logging.DebugLogger.Printf("%x\n", key)
-	}
 	for _, utxo := range utxos {
 		key, err := utxo.GetKey()
 		if err != nil {
@@ -169,11 +165,6 @@ func (w *Wallet) AddUTXOs(utxos []*OwnedUTXO) error {
 		w.PubKeysToWatch = append(w.PubKeysToWatch, utxo.PubKey)
 		w.UTXOs = append(w.UTXOs, utxo)
 		w.UTXOMapping[key] = struct{}{}
-	}
-
-	logging.DebugLogger.Println("Mapping post")
-	for key := range w.UTXOMapping {
-		logging.DebugLogger.Printf("%x\n", key)
 	}
 
 	return nil

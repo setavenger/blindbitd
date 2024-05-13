@@ -314,6 +314,17 @@ func (d *Daemon) ContinuousScan() error {
 			if oldBalance != newBalance {
 				logging.InfoLogger.Printf("New balance: %d\n", newBalance)
 			}
+		case height := <-d.TriggerRescanChan:
+			oldBalance := d.Wallet.FreeBalance()
+			err := d.ForceSyncFrom(height)
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				return err
+			}
+			newBalance := d.Wallet.FreeBalance()
+			if oldBalance != newBalance {
+				logging.InfoLogger.Printf("New balance: %d\n", newBalance)
+			}
 		case <-time.NewTicker(5 * time.Minute).C:
 			// todo is this needed if NewBlockChan is very robust?
 			// check every 5 minutes anyway
