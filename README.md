@@ -1,4 +1,4 @@
-# BlindBitd (wip)
+# blindbitd (wip)
 
 Receive and send functionality. This is the daemon for the BlindBit Wallet. The daemon can be controlled
 with [blindbit-cli](./cli/README.md). Still in early testing, only use with funds you can
@@ -9,6 +9,12 @@ new blocks and also listens to Electrum's `blockchain.headers.subscribe`.
 IMPORTANT: The wallet data and keys are only encrypted when on disk. For scanning purposes the private keys are
 currently always kept in memory. In future there will be a separate spending password that encrypts the spend secret key
 and the mnemonic separately.
+
+IMPORTANT: Currently there is no good way to check for spent UTXOs. blindbitd checks an electrum server for a
+scriptPubKeys balance. Using public electrum servers will leak privacy! Per default Tor is enabled for requests to the
+electrum server. It can be disabled in cases were one trusts the electrum server.
+
+IMPORTANT: As this is still work in progress breaking changes can and probably will happen at any time.
 
 ## Setup
 
@@ -64,7 +70,8 @@ $ bin/blindbitd-cli status
 
 Currently, the daemon is only exposed via a unix socket. The [blindbit-cli](./cli/README.md) controls the flow of the
 daemon. On initial startup you can use `createwallet` command to either initialise a new wallet or recover from a
-mnemonic. `listaddresses` shows your address. You can use `createtransaction` to send to an address.
+mnemonic with `recoverwallet`. `listaddresses` shows your address. You can use `createtransaction` to send to an
+address.
 
 ## Todo
 
@@ -75,16 +82,14 @@ mnemonic. `listaddresses` shows your address. You can use `createtransaction` to
 - [x] Binary encoding to reduce bandwidth save time on decoding (protoBuffs)
 - [ ] Add Transaction History
 - [x] Mark UTXOs as spent (or similar) if used for a transaction
-- [ ] Sometimes unlock does not work on first try, needs a restart of the daemon
-- [ ] Add gRPC credentials
 - [x] Change naming convention of log files
     - It should be easy to determine such that a user does not always have to check the current name
 
 ### Priority 2
 
-- [ ] Be able to set Debug level
+- [ ] Be able to set Log level
 - [ ] More tests for coin selector
-    - Selector seems very accurate, but should rather do +1 sat to exceed fee and don't go below
+    - Selector seems very accurate, but should rather do +1sat to exceed fee and don't go below
 - [ ] Coin selector allow float fees
 - [ ] UTXO export - similar to a backup to avoid rescanning from birthHeight
 - [ ] Separate spending password
@@ -96,6 +101,13 @@ mnemonic. `listaddresses` shows your address. You can use `createtransaction` to
 - [ ] Check which panics to keep
 - [ ] Automatically make annotation in tx-history if sent to sp-address, not possible to reconstruct in hindsight
 - [ ] Don't always add change in coin selector (see todo)
+- [ ] Load UTXOs from txid
+    - input: a txid supplied by the sender
+    - output: success/error
+    - flow: The user receives a txid from the sender. The daemon sources the tx (origin not clear yet) and checks
+      whether an utxo belongs to the wallet.
+    - note: This would be in addition to out-of-band notifications. In case some wallets don't create out-of-band
+      notifications. A txid can always be shared.
 
 ## IPC
 

@@ -19,10 +19,12 @@ var (
 	birthHeight       uint64
 	useSeedPassphrase bool
 
+	// todo recover with label count
 	recoverwalletCmd = &cobra.Command{
 		Use:   "recoverwallet",
 		Short: "Recover a wallet from mnemonic seed",
-		Long:  `birthheight is required if you want to scan the entire chain then set it to one`, // this could be changed to scan from a certain Bip352 activation height unless explicitly overridden
+		Long: `birthheight is required, if you want to scan the entire chain then set it to 1.
+You will be prompted to enter your mnemonic.`, // this could be changed to scan from a certain Bip352 activation height unless explicitly overridden
 		Run: func(cmd *cobra.Command, args []string) {
 			client, conn := lib.NewClient(socketPath)
 			defer func(conn *grpc.ClientConn) {

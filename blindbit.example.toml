@@ -5,6 +5,12 @@ blindbit_server = "http://localhost:8000"
 # Electrum server to connect to
 # Default: "localhost:50000"
 electrum_server = "localhost:50000"
+# Should the electrum server be accessed via tor
+# Default: true
+electrum_tor = true
+# Set the proxy host through which tor should be accessed. Normally it's 127.0.0.1:9050
+# Default: 127.0.0.1:9050
+electrum_tor_proxy_host = "127.0.0.1:9050"
 # Defines on which chain the wallet runs. Allowed values: main, test, signet, regtest.
 # Default: signet
 chain = "signet"

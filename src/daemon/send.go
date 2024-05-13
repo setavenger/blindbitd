@@ -64,32 +64,38 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([
 	// extract the ScriptPubKeys of the SP recipients with the selected txInputs
 	recipients, err = ParseRecipients(recipients, vins, src.ChainParams)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	err = sanityCheckRecipientsForSending(recipients)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	packet, err := CreateUnsignedPsbt(recipients, vins)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	err = SignPsbt(packet, vins)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	err = psbt.MaybeFinalizeAll(packet)
 	if err != nil {
-		panic(err)
+		logging.ErrorLogger.Println(err)
+		panic(err) // todo remove panic
 	}
 
 	finalTx, err := psbt.Extract(packet)
 	if err != nil {
-		panic(err)
+		logging.ErrorLogger.Println(err)
+		panic(err) // todo remove panic
 	}
 
 	var sumAllOutputs int64
@@ -112,6 +118,7 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([
 	var buf bytes.Buffer
 	err = finalTx.Serialize(&buf)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
@@ -171,6 +178,7 @@ func ParseRecipients(recipients []*src.Recipient, vins []*bip352.Vin, chainParam
 	if len(spRecipients) > 0 {
 		err := bip352.SenderCreateOutputs(spRecipients, vins, mainnet, false)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return nil, err
 		}
 	}

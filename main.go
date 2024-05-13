@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"github.com/checksum0/go-electrum/electrum"
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
@@ -28,10 +26,12 @@ func init() {
 
 func main() {
 	defer func() {
-		err := os.Remove(src.PathIpcSocket)
-		if err != nil {
-			logging.ErrorLogger.Println(err)
-			panic(err)
+		if exists := utils.CheckIfFileExists(src.PathIpcSocket); exists {
+			err := os.Remove(src.PathIpcSocket)
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				panic(err)
+			}
 		}
 		fmt.Println("blindbitd shut down")
 	}()
@@ -48,12 +48,17 @@ func main() {
 
 	// create the daemon but locked and without Wallet data
 	clientBlindBit := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
-	clientElectrum, err := electrum.NewClientTCP(context.Background(), src.ElectrumServerAddress)
+	clientElectrum, err := networking.CreateElectrumClient()
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		panic(err)
 	}
 
-	d := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum, src.ChainParams)
+	d, err := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		panic(err)
+	}
 	d.Status = pb.Status_STATUS_STARTING
 
 	defer func() {

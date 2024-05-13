@@ -22,13 +22,15 @@ type Wallet struct {
 	BirthHeight    uint64          `json:"birth_height,omitempty"`
 	LastScanHeight uint64          `json:"last_scan,omitempty"`
 	UTXOs          UtxoCollection  `json:"utxos,omitempty"`
-	Labels         []*bip352.Label `json:"labels"`            // Labels contains all labels except for the change label
-	ChangeLabel    *bip352.Label   `json:"change_label"`      // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
-	NextLabelM     uint32          `json:"next_label_m"`      // NextLabelM indicates which m will be used to derive the next label
-	PubKeysToWatch [][32]byte      `json:"pub_keys_to_watch"` // todo this can be taken out, we can check for new payments to old pub-keys via electrum
-	Addresses      Addresses       `json:"addresses"`
-	LabelsMapping  LabelsMapping   `json:"labels_mapping"` // never show LabelsMapping addresses to the user - it includes the change label which should NEVER be shown to normal users
-	UTXOMapping    UTXOMapping     `json:"utxo_mapping"`   // used to keep track of utxos and not add the same twice
+	Labels         []*bip352.Label `json:"labels"`       // Labels contains all labels except for the change label
+	ChangeLabel    *bip352.Label   `json:"change_label"` // ChangeLabel is separate in order to make it clear that it's special and is not just shown like other labels
+	NextLabelM     uint32          `json:"next_label_m"` // NextLabelM indicates which m will be used to derive the next label
+	// todo Important: if taken out we need to keep the tweak fro that UTXO otherwise it will be found but basically unspendable
+	PubKeysToWatch [][32]byte `json:"pub_keys_to_watch"` // todo this can be taken out, we can check for new payments to old pub-keys via electrum.
+	Addresses      Addresses  `json:"addresses"`
+	// todo should LabelsMapping be integrated with Wallet.Labels
+	LabelsMapping LabelsMapping `json:"labels_mapping"` // never show LabelsMapping addresses to the user - it includes the change label which should NEVER be shown to normal users
+	UTXOMapping   UTXOMapping   `json:"utxo_mapping"`   // used to keep track of utxos and not add the same twice
 }
 
 func NewWallet(birthHeight uint64) *Wallet {
@@ -158,12 +160,13 @@ func (w *Wallet) AddUTXOs(utxos []*OwnedUTXO) error {
 			continue
 		}
 
+		logging.DebugLogger.Printf("NewUTXO: %x\n", key)
+
+		w.PubKeysToWatch = append(w.PubKeysToWatch, utxo.PubKey)
 		w.UTXOs = append(w.UTXOs, utxo)
+		w.UTXOMapping[key] = struct{}{}
 	}
 
-	for _, utxo := range utxos {
-		w.PubKeysToWatch = append(w.PubKeysToWatch, utxo.PubKey)
-	}
 	return nil
 }
 
@@ -253,26 +256,25 @@ func (w *Wallet) CheckAndInitialiseFields() error {
 		}
 	}
 
-	if len(w.UTXOMapping) == 0 {
-		w.UTXOMapping = make(map[[36]byte]struct{})
-		var newCollection UtxoCollection
-		for _, utxo := range w.UTXOs {
-			key, err := utxo.GetKey()
-			if err != nil {
-				logging.ErrorLogger.Println(err)
-				return err
-			}
-			_, ok := w.UTXOMapping[key]
-			if !ok {
-				// if an utxo is already present remove it from the set of UTXOs
-				// or actually create a new slice only with valid utxos
-				// might have happened due to prior bug where duplicate utxos were added on rescan
-				newCollection = append(newCollection, utxo)
-			}
-			w.UTXOMapping[key] = struct{}{}
+	// always reconstruct from utxo set stored locally.
+	w.UTXOMapping = make(map[[36]byte]struct{})
+	var newCollection UtxoCollection
+	for _, utxo := range w.UTXOs {
+		key, err := utxo.GetKey()
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return err
 		}
-		w.UTXOs = newCollection
+		_, ok := w.UTXOMapping[key]
+		if !ok {
+			// if an utxo is already present remove it from the set of UTXOs
+			// or actually create a new slice only with valid utxos
+			// might have happened due to prior bug where duplicate utxos were added on rescan
+			newCollection = append(newCollection, utxo)
+		}
+		w.UTXOMapping[key] = struct{}{}
 	}
+	w.UTXOs = newCollection
 
 	_, err := w.GenerateAddress()
 	if err != nil {

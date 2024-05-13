@@ -4,44 +4,47 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/checksum0/go-electrum/electrum"
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/blindbitd/src/utils"
+	"github.com/setavenger/go-electrum/electrum"
 )
 
 type Daemon struct {
-	Status         pb.Status
-	Password       []byte
-	Locked         bool
-	ReadyChan      chan struct{} // for the startup signal; either unlocking or setting password on initial startup
-	ShutdownChan   chan struct{}
-	Mnemonic       string
-	ClientElectrum *electrum.Client
-	ClientBlindBit *networking.ClientBlindBit
-	Wallet         *src.Wallet
-	NewBlockChan   <-chan *electrum.SubscribeHeadersResult
+	Status            pb.Status
+	Password          []byte
+	Locked            bool
+	ReadyChan         chan struct{} // for the startup signal; either unlocking or setting password on initial startup
+	ShutdownChan      chan struct{}
+	Mnemonic          string
+	ClientElectrum    *electrum.Client
+	ClientBlindBit    *networking.ClientBlindBit
+	Wallet            *src.Wallet
+	NewBlockChan      <-chan *electrum.SubscribeHeadersResult
+	TriggerRescanChan chan uint64
 }
 
-func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client, network *chaincfg.Params) *Daemon {
+func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client) (*Daemon, error) {
 	channel, err := clientElectrum.SubscribeHeaders(context.Background())
 	if err != nil {
-		panic(err)
+		logging.ErrorLogger.Println(err)
+		return nil, err
 	}
-	return &Daemon{
-		Status:         pb.Status_STATUS_UNSPECIFIED,
-		Wallet:         wallet,
-		ClientBlindBit: clientBlindBit,
-		ClientElectrum: clientElectrum,
-		Locked:         true,
-		ReadyChan:      make(chan struct{}),
-		ShutdownChan:   make(chan struct{}),
-		NewBlockChan:   channel,
+	daemon := Daemon{
+		Status:            pb.Status_STATUS_UNSPECIFIED,
+		Wallet:            wallet,
+		ClientBlindBit:    clientBlindBit,
+		ClientElectrum:    clientElectrum,
+		Locked:            true,
+		ReadyChan:         make(chan struct{}),
+		ShutdownChan:      make(chan struct{}),
+		NewBlockChan:      channel,
+		TriggerRescanChan: make(chan uint64),
 	}
+	return &daemon, nil
 }
 
 func (d *Daemon) Run() error {
@@ -101,6 +104,10 @@ func (d *Daemon) LoadDataFromDB() error {
 func (d *Daemon) Shutdown() error {
 	// todo save all data to a files
 	fmt.Println("Process shutting down")
+
+	if d.ClientElectrum != nil {
+		d.ClientElectrum.Shutdown()
+	}
 	if d.Status == pb.Status_STATUS_NO_WALLET {
 		// we don't store anything if the wallet was not initialised yet
 		return nil
