@@ -1,6 +1,6 @@
 module blindbitd/debug-tools
 
-go 1.21.9 // todo unify with the other modules
+go 1.21 // todo unify with the other modules
 
 require (
 	github.com/setavenger/go-bip352 v0.1.5
