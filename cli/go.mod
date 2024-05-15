@@ -2,8 +2,6 @@ module github.com/setavenger/blindbitd/cli
 
 go 1.21
 
-toolchain go1.21.9
-
 require (
 	github.com/setavenger/blindbitd v0.0.0-20240504101325-39a1e38ef9e3
 	github.com/spf13/cobra v1.8.0
@@ -25,4 +23,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/setavenger/blindbitd => ../

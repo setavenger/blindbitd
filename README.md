@@ -71,7 +71,7 @@ $ bin/blindbitd-cli status
 Currently, the daemon is only exposed via a unix socket. The [blindbit-cli](./cli/README.md) controls the flow of the
 daemon. On initial startup you can use `createwallet` command to either initialise a new wallet or recover from a
 mnemonic with `recoverwallet`. `listaddresses` shows your address. You can use `createtransaction` to send to an
-address.
+address. If the wallet was already set up you can use `unlock`.
 
 ## Todo
 

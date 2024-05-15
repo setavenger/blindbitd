@@ -29,8 +29,6 @@ github.com/btcsuite/snappy-go v0.0.0-20151229074030-0bdef8d06723/go.mod h1:8woku
 github.com/btcsuite/snappy-go v1.0.0/go.mod h1:8woku9dyThutzjeg+3xrA5iCpBRH8XEEg3lh6TiUghc=
 github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtEyQwv5/p4Mg4C0fgbePVuGr935/5ddU9Z3TmDRY=
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
-github.com/checksum0/go-electrum v0.0.0-20220912200153-b862ac442cf9 h1:PEkrrCdN0F0wgeof+V8dwMabAYccVBgJfqysVdlT51U=
-github.com/checksum0/go-electrum v0.0.0-20220912200153-b862ac442cf9/go.mod h1:EjLxYzaf/28gOdSRlifeLfjoOA6aUjtJZhwaZPnjL9c=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -94,6 +92,8 @@ github.com/sagikazarmark/slog-shim v0.1.0 h1:diDBnUNK9N/354PgrxMywXnAwEr1QZcOr6g
 github.com/sagikazarmark/slog-shim v0.1.0/go.mod h1:SrcSrq8aKtyuqEI1uvTDTK1arOWRIczQRv+GVI1AkeQ=
 github.com/setavenger/go-bip352 v0.1.5 h1:jnT9XxvqJxcBjfXHgYrInN5hrfq93X4aK+AC0cgwRpk=
 github.com/setavenger/go-bip352 v0.1.5/go.mod h1:ajjkB64QrjbF0+MEUjeeBlBxDaJk7VmYUN8XbOK+EKo=
+github.com/setavenger/go-electrum v1.1.1 h1:2rowPjZE9BGLBHHenVwq6JWP0RKlqY2A5Bd6omprPjk=
+github.com/setavenger/go-electrum v1.1.1/go.mod h1:KMpSntzOaW62VO/Q4bCP3rzzRTilGeAOC1QGU+UhEaE=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/spf13/afero v1.11.0 h1:WJQKhtpdm3v2IzqG8VMqrr6Rf3UYpEF239Jy9wNepM8=

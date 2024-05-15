@@ -3,13 +3,16 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/setavenger/blindbitd/cli/lib"
-	"github.com/setavenger/blindbitd/pb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 	"log"
 	"os"
 	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
+	"github.com/setavenger/blindbitd/pb"
+
+	"github.com/setavenger/blindbitd/cli/lib"
 )
 
 // balanceCmd represents the balance command
@@ -23,6 +26,7 @@ var (
 	showSpent            = false
 	showSpentUnConfirmed = false
 
+	labelM int64 // needs to be negative to inform about no label used. Filtering for change (m = 0) is possible as well
 	states []pb.UTXOState
 
 	balanceCmd = &cobra.Command{
@@ -66,6 +70,13 @@ var (
 			} else {
 				for _, state := range states {
 					for _, utxo := range utxos.Utxos {
+						// if labelM is below 0 it is not a label and we hence don't compare labels.
+						// if we check for labels and the label is nil (standard address) we skip the entry as it can't be the label we are searching for
+						// if we check for labels and M is not what we are looking for we skip as well
+						if labelM > -1 && (utxo.Label == nil || utxo.Label.M != uint32(labelM)) {
+							// this condition only applies if a label is set. All values below 0 are deemed as no filter applied.
+							continue
+						}
 						if utxo.UtxoState == state {
 							filteredUTXOs = append(filteredUTXOs, utxo)
 						}
@@ -88,7 +99,7 @@ var (
 					} else {
 						output += "\t"
 					}
-					_, err := fmt.Fprintln(writer, output)
+					_, err = fmt.Fprintln(writer, output)
 					if err != nil {
 						log.Fatalln(err)
 					}
@@ -124,4 +135,5 @@ func init() {
 	balanceCmd.PersistentFlags().BoolVar(&showSpent, "spent", false, "add spent utxos to the filter")
 	balanceCmd.PersistentFlags().BoolVar(&showSpentUnConfirmed, "spentunconf", false, "add spent utxos whose spending transaction is not confirmed to the filter")
 
+	balanceCmd.PersistentFlags().Int64Var(&labelM, "label", -1, "Filter your utxos and balance by label. Set the labels M value. Can be determined by running `labels list`.")
 }

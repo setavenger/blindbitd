@@ -142,6 +142,19 @@ func (s *Server) ListAddresses(_ context.Context, _ *pb.Empty) (*pb.AddressesCol
 	return &addressCollection, nil
 }
 
+func (s *Server) ListLabels(_ context.Context, _ *pb.Empty) (*pb.LabelsCollection, error) {
+  if s.Daemon.Locked {
+    return nil, src.ErrDaemonIsLocked
+  }
+
+  var labelsCollection pb.LabelsCollection
+  for _, label := range s.Daemon.Wallet.Labels {
+    labelsCollection.Labels = append(labelsCollection.Labels, convertLabel(label, s.Daemon.Wallet.LabelsMapping))
+  }
+
+  return &labelsCollection, nil
+}
+
 func (s *Server) CreateNewLabel(_ context.Context, in *pb.NewLabelRequest) (*pb.Address, error) {
 	if s.Daemon.Locked {
 		return nil, src.ErrDaemonIsLocked

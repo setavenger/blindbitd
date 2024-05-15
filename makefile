@@ -3,19 +3,19 @@ generate:
 
 # at the moment we only have automatic docs for the cobra cli, expand once something similar exists for the daemon
 # needs to be built before such that latest RootCmd is in the build
-gen_docs: generate
+gen_docs:
 	go build -C ./cli -o ../bin/gen_doc ./scripts && bin/gen_doc
 
 
-build: generate
+build:
 	go build -o bin/blindbitd .
 	go build -C cli -o ../bin/blindbit-cli .
 
 
-build-cli: generate
+build-cli:
 	go build -C cli -o ../bin/blindbit-cli .
 
-build-daemon: generate
+build-daemon:
 	go build -o bin/blindbitd .
 
 build-devtools:

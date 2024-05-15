@@ -26,6 +26,7 @@ const (
 	IpcService_Shutdown_FullMethodName                      = "/ipc.IpcService/Shutdown"
 	IpcService_ListUTXOs_FullMethodName                     = "/ipc.IpcService/ListUTXOs"
 	IpcService_ListAddresses_FullMethodName                 = "/ipc.IpcService/ListAddresses"
+	IpcService_ListLabels_FullMethodName                    = "/ipc.IpcService/ListLabels"
 	IpcService_CreateNewLabel_FullMethodName                = "/ipc.IpcService/CreateNewLabel"
 	IpcService_CreateTransaction_FullMethodName             = "/ipc.IpcService/CreateTransaction"
 	IpcService_CreateTransactionAndBroadcast_FullMethodName = "/ipc.IpcService/CreateTransactionAndBroadcast"
@@ -50,6 +51,7 @@ type IpcServiceClient interface {
 	Shutdown(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BoolResponse, error)
 	ListUTXOs(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UTXOCollection, error)
 	ListAddresses(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AddressesCollection, error)
+	ListLabels(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*LabelsCollection, error)
 	CreateNewLabel(ctx context.Context, in *NewLabelRequest, opts ...grpc.CallOption) (*Address, error)
 	CreateTransaction(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*RawTransaction, error)
 	CreateTransactionAndBroadcast(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*NewTransaction, error)
@@ -127,6 +129,15 @@ func (c *ipcServiceClient) ListUTXOs(ctx context.Context, in *Empty, opts ...grp
 func (c *ipcServiceClient) ListAddresses(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AddressesCollection, error) {
 	out := new(AddressesCollection)
 	err := c.cc.Invoke(ctx, IpcService_ListAddresses_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ipcServiceClient) ListLabels(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*LabelsCollection, error) {
+	out := new(LabelsCollection)
+	err := c.cc.Invoke(ctx, IpcService_ListLabels_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -235,6 +246,7 @@ type IpcServiceServer interface {
 	Shutdown(context.Context, *Empty) (*BoolResponse, error)
 	ListUTXOs(context.Context, *Empty) (*UTXOCollection, error)
 	ListAddresses(context.Context, *Empty) (*AddressesCollection, error)
+	ListLabels(context.Context, *Empty) (*LabelsCollection, error)
 	CreateNewLabel(context.Context, *NewLabelRequest) (*Address, error)
 	CreateTransaction(context.Context, *CreateTransactionRequest) (*RawTransaction, error)
 	CreateTransactionAndBroadcast(context.Context, *CreateTransactionRequest) (*NewTransaction, error)
@@ -272,6 +284,9 @@ func (UnimplementedIpcServiceServer) ListUTXOs(context.Context, *Empty) (*UTXOCo
 }
 func (UnimplementedIpcServiceServer) ListAddresses(context.Context, *Empty) (*AddressesCollection, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAddresses not implemented")
+}
+func (UnimplementedIpcServiceServer) ListLabels(context.Context, *Empty) (*LabelsCollection, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListLabels not implemented")
 }
 func (UnimplementedIpcServiceServer) CreateNewLabel(context.Context, *NewLabelRequest) (*Address, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateNewLabel not implemented")
@@ -438,6 +453,24 @@ func _IpcService_ListAddresses_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IpcServiceServer).ListAddresses(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IpcService_ListLabels_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).ListLabels(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_ListLabels_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).ListLabels(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -656,6 +689,10 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListAddresses",
 			Handler:    _IpcService_ListAddresses_Handler,
+		},
+		{
+			MethodName: "ListLabels",
+			Handler:    _IpcService_ListLabels_Handler,
 		},
 		{
 			MethodName: "CreateNewLabel",

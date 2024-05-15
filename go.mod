@@ -8,8 +8,8 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
-	github.com/setavenger/go-electrum v0.0.0-20220912200153-b862ac442cf9
 	github.com/setavenger/go-bip352 v0.1.5
+	github.com/setavenger/go-electrum v1.1.1
 	github.com/spf13/viper v1.18.2
 	github.com/tyler-smith/go-bip39 v1.1.0
 	google.golang.org/grpc v1.63.2
@@ -44,10 +44,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-
-replace (
-	github.com/setavenger/go-electrum => ../go-electrum
-	github.com/setavenger/go-bip352 => ../go-bip352
 )
