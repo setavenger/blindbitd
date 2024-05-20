@@ -3,17 +3,20 @@ package daemon
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/btcsuite/btcd/btcutil/gcs"
 	"github.com/btcsuite/btcd/btcutil/gcs/builder"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+
+	bip352 "github.com/setavenger/go-bip352"
+
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/blindbitd/src/utils"
-	"github.com/setavenger/go-bip352"
-	"time"
 )
 
 // syncBlock there are several possibilities how this returns no error and still an empty slice for FoundOutputs
