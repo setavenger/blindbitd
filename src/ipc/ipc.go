@@ -3,17 +3,19 @@ package ipc
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
+	"strings"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-	"net"
-	"os"
-	"strings"
-	"time"
 )
 
 type Server struct {
@@ -143,16 +145,16 @@ func (s *Server) ListAddresses(_ context.Context, _ *pb.Empty) (*pb.AddressesCol
 }
 
 func (s *Server) ListLabels(_ context.Context, _ *pb.Empty) (*pb.LabelsCollection, error) {
-  if s.Daemon.Locked {
-    return nil, src.ErrDaemonIsLocked
-  }
+	if s.Daemon.Locked {
+		return nil, src.ErrDaemonIsLocked
+	}
 
-  var labelsCollection pb.LabelsCollection
-  for _, label := range s.Daemon.Wallet.Labels {
-    labelsCollection.Labels = append(labelsCollection.Labels, convertLabel(label, s.Daemon.Wallet.LabelsMapping))
-  }
+	var labelsCollection pb.LabelsCollection
+	for _, label := range s.Daemon.Wallet.Labels {
+		labelsCollection.Labels = append(labelsCollection.Labels, convertLabel(label, s.Daemon.Wallet.LabelsMapping))
+	}
 
-  return &labelsCollection, nil
+	return &labelsCollection, nil
 }
 
 func (s *Server) CreateNewLabel(_ context.Context, in *pb.NewLabelRequest) (*pb.Address, error) {

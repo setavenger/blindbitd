@@ -16,6 +16,9 @@ electrum server. It can be disabled in cases were one trusts the electrum server
 
 IMPORTANT: As this is still work in progress breaking changes can and probably will happen at any time.
 
+IMPORTANT: A light client should not try to make transactions from several instances in parallel. This will almost 
+definitely resolve in failing transactions. For now it is recommended to only have one instance running per wallet/seed.
+
 ## Setup
 
 ### Requirements
