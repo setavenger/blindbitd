@@ -1,6 +1,6 @@
 module github.com/setavenger/blindbitd
 
-go 1.19
+go 1.21
 
 require (
 	github.com/btcsuite/btcd v0.23.5-0.20231219003633-4c2ce6daed8f
