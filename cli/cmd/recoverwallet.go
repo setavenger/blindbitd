@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/setavenger/blindbitd/cli/lib"
 	"github.com/setavenger/blindbitd/pb"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/grpc"
-	"log"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -18,13 +19,16 @@ import (
 var (
 	birthHeight       uint64
 	useSeedPassphrase bool
+	labelCount        uint32
 
 	// todo recover with label count
 	recoverwalletCmd = &cobra.Command{
 		Use:   "recoverwallet",
 		Short: "Recover a wallet from mnemonic seed",
 		Long: `birthheight is required, if you want to scan the entire chain then set it to 1.
-You will be prompted to enter your mnemonic.`, // this could be changed to scan from a certain Bip352 activation height unless explicitly overridden
+You will be prompted to enter your mnemonic.
+    The number of labels needs to be set if labels existed.
+    Otherwise transactions involving labels will not be found.`, // this could be changed to scan from a certain Bip352 activation height unless explicitly overridden
 		Run: func(cmd *cobra.Command, args []string) {
 			client, conn := lib.NewClient(socketPath)
 			defer func(conn *grpc.ClientConn) {
@@ -80,7 +84,7 @@ You will be prompted to enter your mnemonic.`, // this could be changed to scan 
 				birthHeight = 1
 			}
 
-			response, err := client.RecoverWallet(context.Background(), &pb.RecoverWalletRequest{EncryptionPassword: string(passwordBytes), SeedPassphrase: &seedPassphrase, Mnemonic: mnemonic, BirthHeight: birthHeight})
+			response, err := client.RecoverWallet(context.Background(), &pb.RecoverWalletRequest{EncryptionPassword: string(passwordBytes), SeedPassphrase: &seedPassphrase, Mnemonic: mnemonic, BirthHeight: birthHeight, LabelCount: labelCount})
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -90,7 +94,6 @@ You will be prompted to enter your mnemonic.`, // this could be changed to scan 
 			} else {
 				fmt.Printf("Failed with error: %s", response.Error)
 			}
-
 		},
 	}
 )
@@ -99,6 +102,7 @@ func init() {
 	RootCmd.AddCommand(recoverwalletCmd)
 
 	recoverwalletCmd.PersistentFlags().Uint64Var(&birthHeight, "birthheight", 0, "set the birth height for a recovered wallet")
+	recoverwalletCmd.PersistentFlags().Uint32Var(&labelCount, "labelcount", 0, "set the number of labels which should be created")
 	recoverwalletCmd.PersistentFlags().BoolVar(&useSeedPassphrase, "seedpass", false, "add a passphrase to the wallet seed")
 
 	err := cobra.MarkFlagRequired(recoverwalletCmd.PersistentFlags(), "birthheight")

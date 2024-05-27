@@ -8,7 +8,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
-	github.com/setavenger/go-bip352 v0.1.5
+	github.com/setavenger/go-bip352 v0.1.6
 	github.com/setavenger/go-electrum v1.1.1
 	github.com/spf13/viper v1.18.2
 	github.com/tyler-smith/go-bip39 v1.1.0

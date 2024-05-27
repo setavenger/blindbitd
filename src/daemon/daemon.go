@@ -3,7 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
-	"fmt"
+
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/database"
@@ -28,11 +28,16 @@ type Daemon struct {
 }
 
 func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client) (*Daemon, error) {
-	channel, err := clientElectrum.SubscribeHeaders(context.Background())
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		return nil, err
+	var channel <-chan *electrum.SubscribeHeadersResult
+	var err error
+	if src.UseElectrum {
+		channel, err = clientElectrum.SubscribeHeaders(context.Background())
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return nil, err
+		}
 	}
+
 	daemon := Daemon{
 		Status:            pb.Status_STATUS_UNSPECIFIED,
 		Wallet:            wallet,
@@ -103,7 +108,7 @@ func (d *Daemon) LoadDataFromDB() error {
 
 func (d *Daemon) Shutdown() error {
 	// todo save all data to a files
-	fmt.Println("Process shutting down")
+	logging.InfoLogger.Println("Process shutting down")
 
 	if d.ClientElectrum != nil {
 		d.ClientElectrum.Shutdown()

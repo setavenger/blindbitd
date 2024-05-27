@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -28,9 +29,11 @@ const ExtraDataAmountKey = "amount"
 // SendToRecipients
 // creates a signed transaction that sends to the specified recipients
 // todo should all these functions just be Daemon functions
-func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([]byte, error) {
+// use markSpent to set the used UTXOs to spent_unconfirmed
+// use useSpentUnconfirmed to also include spent_undconfirmed UTXOs in the coinSelection process
+func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64, markSpent, useSpentUnconfirmed bool) ([]byte, error) {
 
-	selector := coinselector.NewFeeRateCoinSelector(d.Wallet.GetFreeUTXOs(), uint64(src.MinChangeAmount), recipients)
+	selector := coinselector.NewFeeRateCoinSelector(d.Wallet.GetFreeUTXOs(useSpentUnconfirmed), uint64(src.MinChangeAmount), recipients)
 
 	selectedUTXOs, changeAmount, err := selector.CoinSelect(uint32(feeRate))
 	if err != nil {
@@ -108,11 +111,13 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([
 
 	errorTerm := 0.25 // todo make variable
 	if actualFeeRate > float64(feeRate)+errorTerm {
-		return nil, errors.New(fmt.Sprintf("actual fee rate deviates to strong from desired fee rate: %f > %d", actualFeeRate, feeRate))
+		err = fmt.Errorf("actual fee rate deviates to strong from desired fee rate: %f > %d", actualFeeRate, feeRate)
+		return nil, err
 	}
 
 	if actualFeeRate < float64(feeRate)-errorTerm {
-		return nil, errors.New(fmt.Sprintf("actual fee rate deviates to strong from desired fee rate: %f < %d", actualFeeRate, feeRate))
+		err = fmt.Errorf("actual fee rate deviates to strong from desired fee rate: %f < %d", actualFeeRate, feeRate)
+		return nil, err
 	}
 
 	var buf bytes.Buffer
@@ -120,6 +125,34 @@ func (d *Daemon) SendToRecipients(recipients []*src.Recipient, feeRate int64) ([
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
+	}
+
+	if markSpent {
+		var found int
+		// now that everything worked mark as spent if desired
+		for _, vin := range vins {
+			vinOutpoint, err := utils.SerialiseVinToOutpoint(*vin)
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				return nil, err
+			}
+			for _, utxo := range d.Wallet.UTXOs {
+				utxoOutpoint, err := utxo.SerialiseToOutpoint()
+				if err != nil {
+					logging.ErrorLogger.Println(err)
+					return nil, err
+				}
+				if bytes.Equal(vinOutpoint[:], utxoOutpoint[:]) {
+					utxo.State = src.StateUnconfirmedSpent
+					found++
+					logging.DebugLogger.Printf("Marked %x as spent\n", utxoOutpoint)
+				}
+			}
+		}
+		if found != len(vins) {
+			err = fmt.Errorf("we could not mark enough utxos as spent. marked %d, needed %d", found, len(vins))
+			return nil, err
+		}
 	}
 
 	return buf.Bytes(), err
@@ -246,8 +279,23 @@ func SignPsbt(packet *psbt.Packet, vins []*bip352.Vin) error {
 	}
 
 	prevOutsForFetcher := make(map[wire.OutPoint]*wire.TxOut, len(vins))
-	for i, vin := range vins {
-		prevOutsForFetcher[packet.UnsignedTx.TxIn[i].PreviousOutPoint] = wire.NewTxOut(int64(vin.Amount), vin.ScriptPubKey)
+
+	// simple map to find correct vin for prevOutsForFetcher
+	vinMap := make(map[string]bip352.Vin, len(vins))
+	for _, v := range vins {
+		vinMap[fmt.Sprintf("%x:%d", v.Txid, v.Vout)] = *v
+	}
+
+	for i := 0; i < len(vins); i++ {
+		outpoint := packet.UnsignedTx.TxIn[i].PreviousOutPoint
+		key := fmt.Sprintf("%x:%d", bip352.ReverseBytesCopy(outpoint.Hash[:]), outpoint.Index)
+		vin, ok := vinMap[key]
+		if !ok {
+			err := fmt.Errorf("a vin was not found in the map, should not happen. upstream error in psbt and vin selection and or construction")
+			logging.ErrorLogger.Println(err)
+			return err
+		}
+		prevOutsForFetcher[outpoint] = wire.NewTxOut(int64(vin.Amount), vin.ScriptPubKey)
 	}
 
 	multiFetcher := txscript.NewMultiPrevOutFetcher(prevOutsForFetcher)
@@ -257,14 +305,15 @@ func SignPsbt(packet *psbt.Packet, vins []*bip352.Vin) error {
 	var pInputs []psbt.PInput
 
 	for iOuter, input := range packet.UnsignedTx.TxIn {
-
 		signatureHash, err := txscript.CalcTaprootSignatureHash(sigHashes, txscript.SigHashDefault, packet.UnsignedTx, iOuter, multiFetcher)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			panic(err)
 		}
 
 		pInput, err := matchAndSign(input, signatureHash, vins)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			panic(err)
 		}
 
@@ -292,12 +341,14 @@ func matchAndSign(input *wire.TxIn, signatureHash []byte, vins []*bip352.Vin) (p
 			}
 			signature, err := schnorr.Sign(privKey, signatureHash)
 			if err != nil {
+				logging.ErrorLogger.Println(err)
 				panic(err)
 			}
 
 			var witnessBytes bytes.Buffer
 			err = psbt.WriteTxWitness(&witnessBytes, [][]byte{signature.Serialize()})
 			if err != nil {
+				logging.ErrorLogger.Println(err)
 				panic(err)
 			}
 
@@ -328,6 +379,10 @@ func ConvertSPRecipient(recipient *bip352.Recipient) *src.Recipient {
 // BroadcastTx
 // broadcasts a transaction and returns the txid
 func (d *Daemon) BroadcastTx(rawTx []byte) (string, error) {
+	if !src.UseElectrum {
+		return "", errors.New("currently can't broadcast without electrum; either activate electrum or publish on another channel")
+	}
+	// todo parse tx and check against the outpoints which where spent and mark UTXOs locally.
 	txid, err := d.ClientElectrum.BroadcastTransaction(context.Background(), hex.EncodeToString(rawTx))
 	if err != nil {
 		return "", err

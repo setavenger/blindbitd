@@ -1,6 +1,8 @@
 package src
 
 import (
+	"time"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/utils"
@@ -59,8 +61,6 @@ func SetPaths(baseDirectory string) {
 
 	utils.TryCreateDirectoryPanic(DirectoryPath + dataPath)
 	utils.TryCreateDirectoryPanic(PathLogs)
-
-	return
 }
 
 func LoadConfigs(pathToConfig string) {
@@ -75,7 +75,7 @@ func LoadConfigs(pathToConfig string) {
 	/* set defaults */
 	// network
 	viper.SetDefault("network.blindbit_server", "http://localhost:8000")
-	viper.SetDefault("network.electrum_server", "localhost:50000")
+	viper.SetDefault("network.electrum_server", "") // we set this to empty
 	viper.SetDefault("network.chain", "signet")
 	viper.SetDefault("network.electrum_tor", true)
 	viper.SetDefault("network.electrum_tor_proxy_host", "127.0.0.1:9050")
@@ -87,12 +87,18 @@ func LoadConfigs(pathToConfig string) {
 	/* read and set config variables */
 	BlindBitServerAddress = viper.GetString("network.blindbit_server")
 	ElectrumServerAddress = viper.GetString("network.electrum_server")
-	useTor := viper.GetBool("network.electrum_tor")
-	if useTor {
-		ElectrumTorProxyHost = viper.GetString("network.electrum_tor_proxy_host")
+	if ElectrumServerAddress != "" {
+		UseElectrum = true
+		useTor := viper.GetBool("network.electrum_tor")
+		if useTor {
+			ElectrumTorProxyHost = viper.GetString("network.electrum_tor_proxy_host")
+		} else {
+			// we set the host to empty which results in no tor being used
+			ElectrumTorProxyHost = ""
+		}
 	} else {
-		// we set the host to empty which results in no tor being used
-		ElectrumTorProxyHost = ""
+		UseElectrum = false
+		AutomaticScanInterval = 1 * time.Minute
 	}
 
 	MinChangeAmount = viper.GetInt64("wallet.minchange_amount")

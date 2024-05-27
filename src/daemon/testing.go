@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/go-bip352"
@@ -106,7 +107,7 @@ func (d *Daemon) RunTests() {
 			Amount:     int64(d.Wallet.UTXOs[0].Amount / 4),
 			Annotation: "paying myself on a label",
 		},
-	}, 10_000)
+	}, 10_000, false, false)
 	if err != nil {
 		panic(err)
 	}

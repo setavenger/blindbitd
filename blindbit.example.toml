@@ -2,7 +2,10 @@
 # Indexing server for silent payments that follows the blindbit standard
 # Default: "http://localhost:8000"
 blindbit_server = "http://localhost:8000"
-# Electrum server to connect to
+# The address of the Electrum server to connect to.
+# Keep this empty to not use electrum at all. 
+# UTXO states will be set to spent or unspent and spent_unconfirmed will only be tracked locally in one daemon instance.
+# Using a public or not trusted Electrum server will leak privacy.
 # Default: "localhost:50000"
 electrum_server = "localhost:50000"
 # Should the electrum server be accessed via tor

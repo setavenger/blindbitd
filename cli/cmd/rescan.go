@@ -3,16 +3,17 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/setavenger/blindbitd/cli/lib"
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"log"
 )
 
 // rescanCmd represents the chain command
 var (
-	height uint64
+	height int64
 
 	rescanCmd = &cobra.Command{
 		Use:   "rescan",
@@ -46,7 +47,7 @@ var (
 func init() {
 	RootCmd.AddCommand(rescanCmd)
 
-	rescanCmd.PersistentFlags().Uint64Var(&height, "height", 1, "set the height from which the wallet should scan")
+	rescanCmd.PersistentFlags().Int64Var(&height, "height", -1, "set the height from which the wallet should scan. -1 syncs to tip from last scan height")
 
 	err := cobra.MarkFlagRequired(rescanCmd.PersistentFlags(), "height")
 	if err != nil {

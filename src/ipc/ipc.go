@@ -3,6 +3,7 @@ package ipc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -168,13 +169,14 @@ func (s *Server) CreateNewLabel(_ context.Context, in *pb.NewLabelRequest) (*pb.
 	return &pb.Address{Address: label.Address, Comment: label.Comment}, nil
 }
 
+// todo can be unified with CreateTransactionAndBroadcast by adding field bool field in request
 func (s *Server) CreateTransaction(_ context.Context, in *pb.CreateTransactionRequest) (*pb.RawTransaction, error) {
 	if s.Daemon.Locked {
 		return nil, src.ErrDaemonIsLocked
 	}
 	recipients := convertToRecipients(in.Recipients)
 	// todo UTXOs have to be marked as spent after creating the transaction; broadcast and mark as spent
-	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate)
+	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate, in.MarkSpent, in.UseSpentUnconfirmed)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
@@ -188,7 +190,7 @@ func (s *Server) CreateTransactionAndBroadcast(_ context.Context, in *pb.CreateT
 	}
 	recipients := convertToRecipients(in.Recipients)
 	// todo UTXOs have to be marked as spent after creating the transaction; broadcast and mark as spent
-	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate)
+	signedTx, err := s.Daemon.SendToRecipients(recipients, in.FeeRate, in.MarkSpent, in.UseSpentUnconfirmed)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +200,9 @@ func (s *Server) CreateTransactionAndBroadcast(_ context.Context, in *pb.CreateT
 	}
 
 	go func() {
+		if !src.UseElectrum {
+			return
+		}
 		// give a delay such that the electrum server can update the state
 		<-time.After(3 * time.Second)
 
@@ -320,6 +325,11 @@ func (s *Server) RecoverWallet(_ context.Context, in *pb.RecoverWalletRequest) (
 		return &response, err
 	}
 
+	// needs to be +2 in order to actually count up and skip
+	for i := 1; i < int(in.LabelCount)+1; i++ {
+		s.Daemon.Wallet.GenerateNewLabel(fmt.Sprintf("auto-generated-%d", i))
+	}
+
 	s.Daemon.ReadyChan <- struct{}{}
 	s.Daemon.Status = pb.Status_STATUS_RUNNING
 
@@ -332,7 +342,15 @@ func (s *Server) ForceRescanFromHeight(_ context.Context, in *pb.RescanRequest) 
 		return nil, src.ErrDaemonIsLocked
 	}
 
-	s.Daemon.TriggerRescanChan <- in.GetHeight()
+	// if number is negative we just sync to tip
+	if in.GetHeight() < 0 {
+		s.Daemon.SyncToTip(0)
+		logging.InfoLogger.Println("Rescan complete")
+		logging.InfoLogger.Println("Balance:", s.Daemon.Wallet.FreeBalance())
+		return &pb.BoolResponse{Success: true}, nil
+	}
+
+	s.Daemon.TriggerRescanChan <- uint64(in.GetHeight())
 	return &pb.BoolResponse{Success: true}, nil
 }
 

@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
 	"github.com/setavenger/blindbitd/src/daemon"
@@ -10,8 +13,7 @@ import (
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/blindbitd/src/networking"
 	"github.com/setavenger/blindbitd/src/utils"
-	"os"
-	"os/signal"
+	"github.com/setavenger/go-electrum/electrum"
 )
 
 var testEnvironment bool
@@ -38,28 +40,10 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	// todo remove after development. Replace with command line arg
-	src.SetPaths(dataDirectory)
-
-	// initialise loggers
-	logging.LoadLoggers(src.PathLogs)
-	// load config settings
-	src.LoadConfigs(src.PathConfig)
-
-	// create the daemon but locked and without Wallet data
-	clientBlindBit := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
-	clientElectrum, err := networking.CreateElectrumClient()
+	d, err := daemon.NewDaemon(nil, nil, nil) // initialise with nothing to avoid deadlocks and nil pointers down below
 	if err != nil {
-		logging.ErrorLogger.Println(err)
 		panic(err)
 	}
-
-	d, err := daemon.NewDaemon(nil, &clientBlindBit, clientElectrum)
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		panic(err)
-	}
-	d.Status = pb.Status_STATUS_STARTING
 
 	defer func() {
 		err = d.Shutdown()
@@ -68,66 +52,103 @@ func main() {
 			panic(err)
 		}
 	}()
-	serverIpc := ipc.NewServer(d)
 
 	go func() {
-		// is blocking hence go routine
-		err = serverIpc.Start()
-		if err != nil {
-			return
+		// todo remove after development. Replace with command line arg
+		src.SetPaths(dataDirectory)
+
+		// initialise loggers
+		logging.LoadLoggers(src.PathLogs)
+		logging.DebugLogger.Println("paths loaded")
+
+		// load config settings
+		src.LoadConfigs(src.PathConfig)
+		logging.DebugLogger.Println("config loaded")
+
+		// create the daemon but locked and without Wallet data
+		clientBlindBit := networking.ClientBlindBit{BaseUrl: src.BlindBitServerAddress}
+		var clientElectrum *electrum.Client
+		var err error
+
+		if src.UseElectrum {
+			logging.DebugLogger.Println("connecting to Electrum server")
+			clientElectrum, err = networking.CreateElectrumClient()
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				panic(err)
+			}
 		}
-	}()
 
-	// todo can this be more robust, especially considering the different unlocking/initialisation paths available
-	if utils.CheckIfFileExists(src.PathToKeys) {
-		d.Status = pb.Status_STATUS_LOCKED
-		// exists and needs to be unlocked
-		logging.InfoLogger.Println("Waiting to be unlocked...")
-		select {
-		// Wait here until daemon is unlocked
-		case <-d.ReadyChan:
-			logging.InfoLogger.Println("Daemon is ready...")
-			d.Locked = false
-		case <-interrupt:
-			return
-		}
-	} else {
-		// does *not* exist
-		d.Status = pb.Status_STATUS_NO_WALLET
-		logging.InfoLogger.Println("Please create new wallet...")
-		select {
-		// Wait here until wallet is set up
-		case <-d.ReadyChan:
-			logging.InfoLogger.Println("Daemon is ready...")
-			d.Locked = false
-		case <-interrupt:
-			return
-		}
-		logging.InfoLogger.Println("New wallet created")
-	}
-
-	d.Status = pb.Status_STATUS_STARTING
-
-	if testEnvironment {
-		err = d.LoadTestData()
-		if err != nil {
-			logging.ErrorLogger.Println(err)
-			return
-		}
-	}
-
-	err = d.Wallet.CheckAndInitialiseFields()
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		return
-	}
-
-	go func() {
-		err = d.Run()
+		d, err = daemon.NewDaemon(nil, &clientBlindBit, clientElectrum)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
 			panic(err)
 		}
+		d.Status = pb.Status_STATUS_STARTING
+
+		serverIpc := ipc.NewServer(d)
+
+		go func() {
+			logging.DebugLogger.Println("Starting IPC server")
+			// is blocking hence go routine
+			err = serverIpc.Start()
+			if err != nil {
+				return
+			}
+		}()
+
+		// todo can this be more robust, especially considering the different unlocking/initialisation paths available
+		if utils.CheckIfFileExists(src.PathToKeys) {
+			d.Status = pb.Status_STATUS_LOCKED
+			// exists and needs to be unlocked
+			logging.InfoLogger.Println("Waiting to be unlocked...")
+			select {
+			// Wait here until daemon is unlocked
+			case <-d.ReadyChan:
+				logging.InfoLogger.Println("Daemon is ready...")
+				d.Locked = false
+			case <-interrupt:
+				return
+			}
+		} else {
+			// does *not* exist
+			d.Status = pb.Status_STATUS_NO_WALLET
+			logging.InfoLogger.Println("Please create new wallet...")
+			select {
+			// Wait here until wallet is set up
+			case <-d.ReadyChan:
+				logging.InfoLogger.Println("Daemon is ready...")
+				d.Locked = false
+			case <-interrupt:
+				return
+			}
+			logging.InfoLogger.Println("New wallet created")
+		}
+
+		d.Status = pb.Status_STATUS_STARTING
+
+		if testEnvironment {
+			err = d.LoadTestData()
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				return
+			}
+		}
+
+		err = d.Wallet.CheckAndInitialiseFields()
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return
+		}
+
+		go func() {
+			err = d.Run()
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				panic(err)
+			}
+		}()
+
 	}()
 
 	for {
