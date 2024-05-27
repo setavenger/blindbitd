@@ -1,6 +1,10 @@
 package src
 
-import "github.com/btcsuite/btcd/chaincfg"
+import (
+	"time"
+
+	"github.com/btcsuite/btcd/chaincfg"
+)
 
 var (
 
@@ -25,4 +29,10 @@ var (
 
 	// ElectrumTorProxyHost if the host addr is given, tor will be used normally "127.0.0.1:9050". This is also the default setting
 	ElectrumTorProxyHost = ""
+
+	// UseElectrum no electrum calls will be made if false. Setting an electrum address wil set to true in settings.
+	UseElectrum bool
+
+	// AutomaticScanInterval has different values depending on whether Electrum is used or not
+	AutomaticScanInterval time.Duration = 5 * time.Minute // 5 minutes if electrum is active
 )

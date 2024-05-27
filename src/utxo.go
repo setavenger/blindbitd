@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/go-bip352"
 )
@@ -18,6 +19,20 @@ type OwnedUTXO struct {
 	Timestamp    uint64        `json:"timestamp,omitempty"`
 	State        UTXOState     `json:"utxo_state,omitempty"`
 	Label        *bip352.Label `json:"label"` // the pubKey associated with the label
+}
+
+func (u *OwnedUTXO) SerialiseToOutpoint() ([36]byte, error) {
+	var buf bytes.Buffer
+	buf.Write(bip352.ReverseBytesCopy(u.Txid[:]))
+	err := binary.Write(&buf, binary.LittleEndian, u.Vout)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return [36]byte{}, err
+	}
+
+	var outpoint [36]byte
+	copy(outpoint[:], buf.Bytes())
+	return outpoint, nil
 }
 
 func (u *OwnedUTXO) LabelPubKey() []byte {

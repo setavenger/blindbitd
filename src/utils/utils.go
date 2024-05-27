@@ -1,9 +1,13 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/go-bip352"
 )
 
@@ -41,4 +45,18 @@ func ConvertPubKeyToScriptHash(pubKey [32]byte) string {
 	data := append([]byte{0x51, 0x20}, pubKey[:]...)
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(bip352.ReverseBytesCopy(hash[:]))
+}
+
+// SerialiseVinToOutpoint serialises a vin to an outpoint in LE encoding
+func SerialiseVinToOutpoint(vin bip352.Vin) ([36]byte, error) {
+	var buf bytes.Buffer
+	buf.Write(bip352.ReverseBytesCopy(vin.Txid[:]))
+	err := binary.Write(&buf, binary.LittleEndian, vin.Vout)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return [36]byte{}, err
+	}
+	var outpoint [36]byte
+	copy(outpoint[:], buf.Bytes())
+	return outpoint, nil
 }

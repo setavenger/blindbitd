@@ -3,27 +3,35 @@ package networking
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/setavenger/blindbitd/src/utils"
-	"github.com/setavenger/go-bip352"
 	"io"
 	"net/http"
+
+	"github.com/setavenger/blindbitd/src/logging"
+	"github.com/setavenger/blindbitd/src/utils"
+	"github.com/setavenger/go-bip352"
 )
 
 /*
 Most of this will probably be removed in favour of binary encodings (proto buffs)
 */
 
+type FilterType string
+
+const (
+	SpentOutpointsFilterType FilterType = "spent"
+	NewUTXOFilterType        FilterType = "new-utxos"
+)
+
 type ClientBlindBit struct {
 	BaseUrl string
 }
 
 type Filter struct {
-	FilterType  uint8  `json:"filter_type,omitempty"`
-	BlockHeight uint64 `json:"block_height,omitempty"`
-	BlockHash   []byte `json:"block_hash,omitempty"`
-	Data        []byte `json:"data,omitempty"`
+	FilterType  uint8    `json:"filter_type,omitempty"`
+	BlockHeight uint64   `json:"block_height,omitempty"`
+	BlockHash   [32]byte `json:"block_hash,omitempty"`
+	Data        []byte   `json:"data,omitempty"`
 }
 
 type UTXOServed struct {
@@ -37,7 +45,13 @@ type UTXOServed struct {
 	Spent        bool     `json:"spent"`
 }
 
+type SpentOutpointsIndex struct {
+	BlockHash [32]byte  `json:"block_hash"`
+	Data      [][8]byte `json:"data"`
+}
+
 func (c ClientBlindBit) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, error) {
+	// todo add support for the /tweak-index/ endpoint
 	url := fmt.Sprintf("%s/tweaks/%d", c.BaseUrl, blockHeight)
 	if dustLimit > 0 {
 		url = fmt.Sprintf("%s?dustLimit=%d", url, dustLimit)
@@ -46,6 +60,7 @@ func (c ClientBlindBit) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, er
 	// HTTP GET request
 	resp, err := http.Get(url)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
@@ -55,6 +70,7 @@ func (c ClientBlindBit) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, er
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
@@ -62,6 +78,7 @@ func (c ClientBlindBit) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, er
 	var data []string
 	err = json.Unmarshal(body, &data)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
@@ -70,16 +87,17 @@ func (c ClientBlindBit) GetTweaks(blockHeight, dustLimit uint64) ([][33]byte, er
 	for _, hexStr := range data {
 		// Each string should be exactly 66 characters long (33 bytes)
 		if len(hexStr) != 66 {
-			return nil, errors.New(fmt.Sprintf("Invalid hex string length: %d", len(hexStr)))
+			return nil, fmt.Errorf("invalid hex string length: %d", len(hexStr))
 		}
 		// Decode hex string to byte slice
 		byteSlice, err := hex.DecodeString(hexStr)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return nil, err
 		}
 		// Convert byte slice to [33]byte
 		var byteArray [33]byte
-		copy(byteArray[:], byteSlice[:33]) // Ensure only the first 33 bytes are copied
+		copy(byteArray[:], byteSlice[:])
 		bytesData = append(bytesData, byteArray)
 	}
 
@@ -92,6 +110,7 @@ func (c ClientBlindBit) GetChainTip() (uint64, error) {
 	// HTTP GET request
 	resp, err := http.Get(url)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return 0, err
 	}
 	defer func(Body io.ReadCloser) {
@@ -100,6 +119,7 @@ func (c ClientBlindBit) GetChainTip() (uint64, error) {
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return 0, err
 	}
 
@@ -108,18 +128,20 @@ func (c ClientBlindBit) GetChainTip() (uint64, error) {
 	}
 	err = json.Unmarshal(body, &data)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return 0, err
 	}
 
 	return data.BlockHeight, err
 }
 
-func (c ClientBlindBit) GetFilter(blockHeight uint64) (*Filter, error) {
-	url := fmt.Sprintf("%s/filter/%d", c.BaseUrl, blockHeight)
+func (c ClientBlindBit) GetFilter(blockHeight uint64, filterType FilterType) (*Filter, error) {
+	url := fmt.Sprintf("%s/filter/%s/%d", c.BaseUrl, filterType, blockHeight)
 
 	// HTTP GET request
 	resp, err := http.Get(url)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
@@ -128,6 +150,7 @@ func (c ClientBlindBit) GetFilter(blockHeight uint64) (*Filter, error) {
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
@@ -139,22 +162,25 @@ func (c ClientBlindBit) GetFilter(blockHeight uint64) (*Filter, error) {
 	}
 	err = json.Unmarshal(body, &data)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	blockHash, err := hex.DecodeString(data.BlockHash)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 	filterData, err := hex.DecodeString(data.Data)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	filter := &Filter{
 		FilterType:  data.FilterType,
 		BlockHeight: data.BlockHeight,
-		BlockHash:   blockHash,
+		BlockHash:   bip352.ConvertToFixedLength32(blockHash),
 		Data:        filterData,
 	}
 
@@ -167,6 +193,7 @@ func (c ClientBlindBit) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 	// HTTP GET request
 	resp, err := http.Get(url)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
@@ -176,6 +203,7 @@ func (c ClientBlindBit) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
@@ -192,21 +220,28 @@ func (c ClientBlindBit) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 
 	err = json.Unmarshal(body, &dataSlice)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
 	var utxos []*UTXOServed
 	for _, data := range dataSlice {
-		blockHashBytes, err := hex.DecodeString(data.BlockHash)
+		var blockHashBytes []byte
+		blockHashBytes, err = hex.DecodeString(data.BlockHash)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return nil, err
 		}
-		scriptPubKeyBytes, err := hex.DecodeString(data.ScriptPubKey)
+		var scriptPubKeyBytes []byte
+		scriptPubKeyBytes, err = hex.DecodeString(data.ScriptPubKey)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return nil, err
 		}
-		txidBytes, err := hex.DecodeString(data.Txid)
+		var txidBytes []byte
+		txidBytes, err = hex.DecodeString(data.Txid)
 		if err != nil {
+			logging.ErrorLogger.Println(err)
 			return nil, err
 		}
 
@@ -225,4 +260,69 @@ func (c ClientBlindBit) GetUTXOs(blockHeight uint64) ([]*UTXOServed, error) {
 	}
 
 	return utxos, err
+}
+
+func (c ClientBlindBit) GetSpentOutpointsIndex(blockHeight uint64) (SpentOutpointsIndex, error) {
+	url := fmt.Sprintf("%s/spent-index/%d", c.BaseUrl, blockHeight)
+
+	// HTTP GET request
+	resp, err := http.Get(url)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return SpentOutpointsIndex{}, err
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return SpentOutpointsIndex{}, err
+	}
+
+	var respData struct {
+		BlockHash string   `json:"block_hash"`
+		Data      []string `json:"data"`
+	}
+
+	// Unmarshal JSON data into a []string
+	err = json.Unmarshal(body, &respData)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return SpentOutpointsIndex{}, err
+	}
+
+	// Convert []string to [][33]byte
+	var output SpentOutpointsIndex
+	blockHashBytes, err := hex.DecodeString(respData.BlockHash)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return SpentOutpointsIndex{}, err
+	}
+
+	output.BlockHash = bip352.ConvertToFixedLength32(blockHashBytes)
+
+	for _, hexStr := range respData.Data {
+		// Each string should be exactly 66 characters long (33 bytes)
+		if len(hexStr) != 16 {
+			err = fmt.Errorf("invalid hex string length: %d", len(hexStr))
+			logging.ErrorLogger.Println(err)
+			return SpentOutpointsIndex{}, err
+		}
+
+		// Decode hex string to byte slice
+		byteSlice, err := hex.DecodeString(hexStr)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return SpentOutpointsIndex{}, err
+		}
+		// Convert byte slice to [8]byte
+		var byteArray [8]byte
+		copy(byteArray[:], byteSlice[:])
+		output.Data = append(output.Data, byteArray)
+	}
+
+	return output, nil
 }

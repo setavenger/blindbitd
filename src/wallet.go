@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/src/logging"
@@ -197,10 +198,13 @@ func (w *Wallet) FreeBalance() uint64 {
 	return balance
 }
 
-func (w *Wallet) GetFreeUTXOs() UtxoCollection {
+func (w *Wallet) GetFreeUTXOs(includeSpentUnconfirmed bool) UtxoCollection {
 	var utxos UtxoCollection
 	for _, utxo := range w.UTXOs {
 		if utxo.State == StateUnspent {
+			utxos = append(utxos, utxo)
+		}
+		if includeSpentUnconfirmed && utxo.State == StateUnconfirmedSpent {
 			utxos = append(utxos, utxo)
 		}
 	}

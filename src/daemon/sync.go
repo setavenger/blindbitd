@@ -1,7 +1,10 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"time"
 
@@ -95,35 +98,17 @@ func (d *Daemon) syncBlock(blockHeight uint64) ([]*src.OwnedUTXO, error) {
 		return nil, nil
 	}
 
-	filterData, err := d.ClientBlindBit.GetFilter(blockHeight)
+	filterData, err := d.ClientBlindBit.GetFilter(blockHeight, networking.NewUTXOFilterType)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
 
-	c := chainhash.Hash{}
-
-	err = c.SetBytes(bip352.ReverseBytesCopy(filterData.BlockHash))
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		return nil, err
-
-	}
-
-	filter, err := gcs.FromNBytes(builder.DefaultP, builder.DefaultM, filterData.Data)
+	isMatch, err := matchFilter(filterData.Data, filterData.BlockHash, potentialOutputs)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
 	}
-
-	key := builder.DeriveKey(&c)
-
-	isMatch, err := filter.HashMatchAny(key, potentialOutputs)
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		return nil, err
-	}
-
 	if !isMatch {
 		return nil, nil
 	}
@@ -212,6 +197,7 @@ func (d *Daemon) SyncToTip(chainTip uint64) error {
 	}
 
 	for i := startHeight; i < chainTip+1; i++ {
+		go d.MarkSpentUTXOs(i)
 		// possible logging here to indicate to the user
 		logging.DebugLogger.Println("syncing:", i)
 		var ownedUTXOs []*src.OwnedUTXO
@@ -263,6 +249,7 @@ func (d *Daemon) ForceSyncFrom(fromHeight uint64) error {
 	}
 
 	for i := fromHeight; i < chainTip+1; i++ {
+		go d.MarkSpentUTXOs(i)
 		// possible logging here to indicate to the user
 		logging.DebugLogger.Println("syncing:", i)
 		var ownedUTXOs []*src.OwnedUTXO
@@ -328,7 +315,7 @@ func (d *Daemon) ContinuousScan() error {
 			if oldBalance != newBalance {
 				logging.InfoLogger.Printf("New balance: %d\n", newBalance)
 			}
-		case <-time.NewTicker(5 * time.Minute).C:
+		case <-time.NewTicker(src.AutomaticScanInterval).C:
 			// todo is this needed if NewBlockChan is very robust?
 			// check every 5 minutes anyway
 			chainTip, err := d.ClientBlindBit.GetChainTip()
@@ -360,6 +347,10 @@ func (d *Daemon) ContinuousScan() error {
 // CheckUnspentUTXOs
 // checks against electrum whether unspent owned UTXOs are now unspent
 func (d *Daemon) CheckUnspentUTXOs() error {
+	if !src.UseElectrum {
+		// we don't use Electrum if set to false
+		return nil
+	}
 	// todo this probably breaks if more than one UTXO are locked to a script
 	//  this should never happen if the protocol is followed but still might occur
 	for _, utxo := range d.Wallet.GetUTXOsByStates(src.StateUnspent, src.StateUnconfirmedSpent) {
@@ -378,4 +369,98 @@ func (d *Daemon) CheckUnspentUTXOs() error {
 		}
 	}
 	return nil
+}
+
+func (d *Daemon) MarkSpentUTXOs(blockHeight uint64) error {
+	// move SpentOutpointsIndex to types
+	filter, err := d.ClientBlindBit.GetFilter(blockHeight, networking.SpentOutpointsFilterType)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+	hashes := d.generateLocalOutpointHashes([32]byte(filter.BlockHash))
+
+	// convert to byte slice
+	var hashesForFilter [][]byte
+	for hash := range hashes {
+		var newHash = make([]byte, 8)
+		copy(newHash[:], hash[:])
+		hashesForFilter = append(hashesForFilter, newHash[:])
+	}
+
+	isMatch, err := matchFilter(filter.Data, filter.BlockHash, hashesForFilter)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	if !isMatch {
+		return nil
+	}
+
+	index, err := d.ClientBlindBit.GetSpentOutpointsIndex(blockHeight)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	for _, hash := range index.Data {
+		if utxoPtr, ok := hashes[hash]; ok {
+			utxoPtr.State = src.StateSpent
+		}
+	}
+
+	return nil
+}
+
+func (d *Daemon) generateLocalOutpointHashes(blockHash [32]byte) map[[8]byte]*src.OwnedUTXO {
+
+	outputs := make(map[[8]byte]*src.OwnedUTXO, len(d.Wallet.UTXOs))
+	blockHashLE := bip352.ReverseBytesCopy(blockHash[:])
+	for _, utxo := range d.Wallet.UTXOs {
+		if utxo.State == src.StateSpent {
+			continue
+		}
+		var buf bytes.Buffer
+
+		buf.Write(bip352.ReverseBytesCopy(utxo.Txid[:]))
+		binary.Write(&buf, binary.LittleEndian, utxo.Vout)
+
+		hashed := sha256.Sum256(append(buf.Bytes(), blockHashLE...))
+		var shortHash [8]byte
+		copy(shortHash[:], hashed[:])
+		outputs[shortHash] = utxo
+	}
+	return outputs
+}
+
+func matchFilter(nBytes []byte, blockHash [32]byte, values [][]byte) (bool, error) {
+	c := chainhash.Hash{}
+
+	err := c.SetBytes(bip352.ReverseBytesCopy(blockHash[:]))
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return false, err
+
+	}
+
+	filter, err := gcs.FromNBytes(builder.DefaultP, builder.DefaultM, nBytes)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return false, err
+	}
+
+	key := builder.DeriveKey(&c)
+
+	isMatch, err := filter.HashMatchAny(key, values)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return false, err
+	}
+
+	if isMatch {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }

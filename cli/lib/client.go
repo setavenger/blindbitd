@@ -3,11 +3,12 @@ package lib
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/setavenger/blindbitd/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
-	"time"
 )
 
 func NewClient(socketPath string) (pb.IpcServiceClient, *grpc.ClientConn) {
