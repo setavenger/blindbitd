@@ -2,8 +2,8 @@ package src
 
 import (
 	"encoding/json"
+
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/go-bip352"
 	"github.com/tyler-smith/go-bip39"
@@ -59,7 +59,7 @@ func KeysFromMnemonic(mnemonic, seedPassphrase string) (*Keys, error) {
 		return nil, err
 	}
 
-	master, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
+	master, err := hdkeychain.NewMaster(seed, ChainParams)
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return nil, err
@@ -91,11 +91,22 @@ func DeriveKeysFromMaster(master *hdkeychain.ExtendedKey) (*Keys, error) {
 		return nil, err
 	}
 
-	// m/352'/0'
-	coinType, err := purpose.Derive(0 + hdkeychain.HardenedKeyStart)
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		return nil, err
+	var coinType *hdkeychain.ExtendedKey
+
+	if ChainParams.Name == "mainnet" {
+		// m/352'/0'
+		coinType, err = purpose.Derive(0 + hdkeychain.HardenedKeyStart)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return nil, err
+		}
+	} else {
+		// m/352'/1'
+		coinType, err = purpose.Derive(1 + hdkeychain.HardenedKeyStart)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return nil, err
+		}
 	}
 
 	// m/352'/0'/0'
