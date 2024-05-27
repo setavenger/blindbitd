@@ -3,10 +3,11 @@ package src
 import (
 	"bytes"
 	"encoding/hex"
+	"testing"
+
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/tyler-smith/go-bip39"
-	"testing"
 )
 
 func TestDeriveKeysFromMaster(t *testing.T) {
@@ -24,6 +25,7 @@ func TestDeriveKeysFromMaster(t *testing.T) {
 		return
 	}
 
+	ChainParams = &chaincfg.MainNetParams
 	keys, err := DeriveKeysFromMaster(master)
 	if err != nil {
 		t.Errorf("error deriving keys: %v", err)
