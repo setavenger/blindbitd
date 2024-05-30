@@ -29,6 +29,8 @@ var (
 
 	ErrDaemonIsLocked = errors.New("daemon is locked")
 
+	ErrDaemonIsScanOnly = errors.New("daemon is scan only")
+
 	ErrInvalidFeeRate = errors.New("invalid fee rate")
 
 	ErrRecipientAmountIsZero = errors.New("recipient amount is zero")

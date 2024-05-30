@@ -32,11 +32,13 @@ const (
 	IpcService_CreateTransactionAndBroadcast_FullMethodName = "/ipc.IpcService/CreateTransactionAndBroadcast"
 	IpcService_BroadcastRawTx_FullMethodName                = "/ipc.IpcService/BroadcastRawTx"
 	IpcService_GetMnemonic_FullMethodName                   = "/ipc.IpcService/GetMnemonic"
+	IpcService_GetScanOnlyData_FullMethodName               = "/ipc.IpcService/GetScanOnlyData"
 	IpcService_SetMnemonic_FullMethodName                   = "/ipc.IpcService/SetMnemonic"
 	IpcService_CreateNewWallet_FullMethodName               = "/ipc.IpcService/CreateNewWallet"
 	IpcService_RecoverWallet_FullMethodName                 = "/ipc.IpcService/RecoverWallet"
 	IpcService_ForceRescanFromHeight_FullMethodName         = "/ipc.IpcService/ForceRescanFromHeight"
 	IpcService_GetChain_FullMethodName                      = "/ipc.IpcService/GetChain"
+	IpcService_SetupScanOnly_FullMethodName                 = "/ipc.IpcService/SetupScanOnly"
 )
 
 // IpcServiceClient is the client API for IpcService service.
@@ -57,11 +59,13 @@ type IpcServiceClient interface {
 	CreateTransactionAndBroadcast(ctx context.Context, in *CreateTransactionRequest, opts ...grpc.CallOption) (*NewTransaction, error)
 	BroadcastRawTx(ctx context.Context, in *RawTransaction, opts ...grpc.CallOption) (*NewTransaction, error)
 	GetMnemonic(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Mnemonic, error)
+	GetScanOnlyData(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ScanOnlyDataResponse, error)
 	SetMnemonic(ctx context.Context, in *Mnemonic, opts ...grpc.CallOption) (*BoolResponse, error)
 	CreateNewWallet(ctx context.Context, in *NewWalletRequest, opts ...grpc.CallOption) (*Mnemonic, error)
 	RecoverWallet(ctx context.Context, in *RecoverWalletRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	ForceRescanFromHeight(ctx context.Context, in *RescanRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	GetChain(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Chain, error)
+	SetupScanOnly(ctx context.Context, in *ScanOnlySetupRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 }
 
 type ipcServiceClient struct {
@@ -189,6 +193,15 @@ func (c *ipcServiceClient) GetMnemonic(ctx context.Context, in *Empty, opts ...g
 	return out, nil
 }
 
+func (c *ipcServiceClient) GetScanOnlyData(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ScanOnlyDataResponse, error) {
+	out := new(ScanOnlyDataResponse)
+	err := c.cc.Invoke(ctx, IpcService_GetScanOnlyData_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ipcServiceClient) SetMnemonic(ctx context.Context, in *Mnemonic, opts ...grpc.CallOption) (*BoolResponse, error) {
 	out := new(BoolResponse)
 	err := c.cc.Invoke(ctx, IpcService_SetMnemonic_FullMethodName, in, out, opts...)
@@ -234,6 +247,15 @@ func (c *ipcServiceClient) GetChain(ctx context.Context, in *Empty, opts ...grpc
 	return out, nil
 }
 
+func (c *ipcServiceClient) SetupScanOnly(ctx context.Context, in *ScanOnlySetupRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, IpcService_SetupScanOnly_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IpcServiceServer is the server API for IpcService service.
 // All implementations must embed UnimplementedIpcServiceServer
 // for forward compatibility
@@ -252,11 +274,13 @@ type IpcServiceServer interface {
 	CreateTransactionAndBroadcast(context.Context, *CreateTransactionRequest) (*NewTransaction, error)
 	BroadcastRawTx(context.Context, *RawTransaction) (*NewTransaction, error)
 	GetMnemonic(context.Context, *Empty) (*Mnemonic, error)
+	GetScanOnlyData(context.Context, *Empty) (*ScanOnlyDataResponse, error)
 	SetMnemonic(context.Context, *Mnemonic) (*BoolResponse, error)
 	CreateNewWallet(context.Context, *NewWalletRequest) (*Mnemonic, error)
 	RecoverWallet(context.Context, *RecoverWalletRequest) (*BoolResponse, error)
 	ForceRescanFromHeight(context.Context, *RescanRequest) (*BoolResponse, error)
 	GetChain(context.Context, *Empty) (*Chain, error)
+	SetupScanOnly(context.Context, *ScanOnlySetupRequest) (*BoolResponse, error)
 	mustEmbedUnimplementedIpcServiceServer()
 }
 
@@ -303,6 +327,9 @@ func (UnimplementedIpcServiceServer) BroadcastRawTx(context.Context, *RawTransac
 func (UnimplementedIpcServiceServer) GetMnemonic(context.Context, *Empty) (*Mnemonic, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMnemonic not implemented")
 }
+func (UnimplementedIpcServiceServer) GetScanOnlyData(context.Context, *Empty) (*ScanOnlyDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetScanOnlyData not implemented")
+}
 func (UnimplementedIpcServiceServer) SetMnemonic(context.Context, *Mnemonic) (*BoolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetMnemonic not implemented")
 }
@@ -317,6 +344,9 @@ func (UnimplementedIpcServiceServer) ForceRescanFromHeight(context.Context, *Res
 }
 func (UnimplementedIpcServiceServer) GetChain(context.Context, *Empty) (*Chain, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetChain not implemented")
+}
+func (UnimplementedIpcServiceServer) SetupScanOnly(context.Context, *ScanOnlySetupRequest) (*BoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetupScanOnly not implemented")
 }
 func (UnimplementedIpcServiceServer) mustEmbedUnimplementedIpcServiceServer() {}
 
@@ -565,6 +595,24 @@ func _IpcService_GetMnemonic_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_GetScanOnlyData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).GetScanOnlyData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_GetScanOnlyData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).GetScanOnlyData(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IpcService_SetMnemonic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Mnemonic)
 	if err := dec(in); err != nil {
@@ -655,6 +703,24 @@ func _IpcService_GetChain_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IpcService_SetupScanOnly_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ScanOnlySetupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpcServiceServer).SetupScanOnly(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IpcService_SetupScanOnly_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpcServiceServer).SetupScanOnly(ctx, req.(*ScanOnlySetupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IpcService_ServiceDesc is the grpc.ServiceDesc for IpcService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -715,6 +781,10 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IpcService_GetMnemonic_Handler,
 		},
 		{
+			MethodName: "GetScanOnlyData",
+			Handler:    _IpcService_GetScanOnlyData_Handler,
+		},
+		{
 			MethodName: "SetMnemonic",
 			Handler:    _IpcService_SetMnemonic_Handler,
 		},
@@ -733,6 +803,10 @@ var IpcService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetChain",
 			Handler:    _IpcService_GetChain_Handler,
+		},
+		{
+			MethodName: "SetupScanOnly",
+			Handler:    _IpcService_SetupScanOnly_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

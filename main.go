@@ -93,12 +93,13 @@ func main() {
 			// is blocking hence go routine
 			err = serverIpc.Start()
 			if err != nil {
-				return
+				logging.ErrorLogger.Println(err)
+				panic(err) // needs panic as entire program should abort here
 			}
 		}()
 
 		// todo can this be more robust, especially considering the different unlocking/initialisation paths available
-		if utils.CheckIfFileExists(src.PathToKeys) {
+		if utils.CheckIfFileExists(src.PathToKeys) || (src.ScanOnly && utils.CheckIfFileExists(src.PathDbWallet)) {
 			d.Status = pb.Status_STATUS_LOCKED
 			// exists and needs to be unlocked
 			logging.InfoLogger.Println("Waiting to be unlocked...")
@@ -111,9 +112,15 @@ func main() {
 				return
 			}
 		} else {
+
 			// does *not* exist
 			d.Status = pb.Status_STATUS_NO_WALLET
-			logging.InfoLogger.Println("Please create new wallet...")
+			if src.ScanOnly {
+				logging.InfoLogger.Println("Setup Keys for scan only mode")
+			} else {
+				logging.InfoLogger.Println("Please create new wallet...")
+			}
+
 			select {
 			// Wait here until wallet is set up
 			case <-d.ReadyChan:

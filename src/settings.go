@@ -83,8 +83,10 @@ func LoadConfigs(pathToConfig string) {
 	// wallet
 	viper.SetDefault("wallet.minchange_amount", 1000)
 	viper.SetDefault("wallet.dust_limit", 1000)
+	viper.SetDefault("wallet.scan_only", false)
 
 	/* read and set config variables */
+	ExposeHttpHost = viper.GetString("network.expose_http")
 	BlindBitServerAddress = viper.GetString("network.blindbit_server")
 	ElectrumServerAddress = viper.GetString("network.electrum_server")
 	if ElectrumServerAddress != "" {
@@ -103,6 +105,8 @@ func LoadConfigs(pathToConfig string) {
 
 	MinChangeAmount = viper.GetInt64("wallet.minchange_amount")
 	DustLimit = viper.GetUint64("wallet.dust_limit")
+
+	ScanOnly = viper.GetBool("wallet.scan_only")
 
 	// extract the chain data and set the params
 	chain := viper.GetString("network.chain")

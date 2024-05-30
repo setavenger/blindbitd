@@ -1,22 +1,15 @@
-## blindbit-cli overview
+## blindbit-cli getscanonlydata
 
-Get an overview over your wallet
-
-### Synopsis
-
-Displays the status of the daemon, 
-the height to which the daemon is synced, 
-the chain on which the daemon is running,
-the current balance, and the first 5 addresses.
+Shows the scan secret key and the spend public key which can then be passed to a scan only daemon.
 
 ```
-blindbit-cli overview [flags]
+blindbit-cli getscanonlydata [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for overview
+  -h, --help   help for getscanonlydata
 ```
 
 ### Options inherited from parent commands
