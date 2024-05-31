@@ -56,7 +56,7 @@ $ make build-cli
 
 The daemon requires a config toml file `blindbit.toml` to be present in its datadir. The socket to the daemon is created
 in `<datadir/run/blindbit.socket>`. The path to the socket has to be passed to `blindbit-cli` in order to access the
-daemon. The default path for blindbitd is `~/.blindbitd`. For both programs the default path forthe socket is set
+daemon. The default path for blindbitd is `~/.blindbitd`. For both programs the default path for the socket is set
 to `~/.blindbitd/run/blindbit.socket`.
 
 You can then run with:
@@ -75,6 +75,14 @@ Currently, the daemon is only exposed via a unix socket. The [blindbit-cli](./cl
 daemon. On initial startup you can use `createwallet` command to either initialise a new wallet or recover from a
 mnemonic with `recoverwallet`. `listaddresses` shows your address. You can use `createtransaction` to send to an
 address. If the wallet was already set up you can use `unlock`.
+
+
+## Scan-Only mode
+
+The daemon can also be run in scan only mode. Only the spend pubkey and the scan secret key will be stored by the dameon. The spend secret key will be unknown to the daemon making spending utxos impossible. Setting `scan_only = 1` under `[wallet]` will start the daemon in scan only mode.
+If the daemon ran in normal mode before it is not recommended to just switch to scan only mode as the spend secret key will still be present. Deleting the `data/keys` file in daemons data directory will resolve this issue. 
+
+Once the daemon is waiting for setup, call `setupscanonly`. Add the spend public key via the flag and you will be prompted to input the scan secret key. You can add a `birthheight` to avoid unnecessary scanning. If you are using labels you must add `--labelcount` and provide the number of labels you have created. Otherwise your transactions involving labels will not be detected as expected.
 
 ## Todo
 
