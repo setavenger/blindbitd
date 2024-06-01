@@ -18,9 +18,8 @@ var (
 
 	verifyPubKeyCmd = &cobra.Command{
 		Use:   "verify-pubkey",
-		Short: "verifies a secret key can generate a valid signature for a pubKey",
-		Long: `Checks whether a given secret key generates a valid schnorr signature 
-    for a given public key`,
+		Short: "Verifies a secret key generates the desired public key",
+		Long:  `Checks whether a given secret key belongs to a given public key`,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("secret key", secretKeyHex)
 			fmt.Println("public key", publicKeyHex)

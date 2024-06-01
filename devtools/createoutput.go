@@ -16,7 +16,6 @@ var (
 	privKeyHex string
 	txidHex    string
 	vout       uint32
-	mainnet    bool
 	isTaproot  bool
 
 	createOutputCmd = &cobra.Command{

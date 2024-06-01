@@ -9,7 +9,7 @@ import (
 // RootCmd represents the base command when called without any subcommands
 var (
 	RootCmd = &cobra.Command{
-		Use:   "blindbit-cli",
+		Use:   "blindbit-devtools",
 		Short: "A simple cli application to ease the development process on Silent Payments",
 		Long:  ``,
 	}
