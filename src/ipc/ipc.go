@@ -41,25 +41,29 @@ func (s *Server) SyncHeight(_ context.Context, _ *pb.Empty) (*pb.SyncHeightRespo
 
 func (s *Server) Unlock(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResponse, error) {
 	// todo remove BoolResponse - just returning an error from server overrides this
+	var err error
 	if !s.Daemon.Locked {
-		return &pb.BoolResponse{Success: false, Error: "daemon already unlocked"}, errors.New("daemon already unlocked")
+		err = fmt.Errorf("daemon already unlocked")
+		return &pb.BoolResponse{Success: false, Error: err.Error()}, err
 	}
 
 	var response pb.BoolResponse
 
 	s.Daemon.Status = pb.Status_STATUS_STARTING
 	s.Daemon.Password = []byte(in.Password)
-	if utils.CheckIfFileExists(src.PathToKeys) {
-		err := s.Daemon.LoadDataFromDB()
+	if utils.CheckIfFileExists(src.PathToKeys) || (src.ScanOnly && utils.CheckIfFileExists(src.PathDbWallet)) {
+		err = s.Daemon.LoadDataFromDB()
 		if err != nil {
 			response.Success = false
 			response.Error = err.Error()
+			logging.ErrorLogger.Println(err)
 			return &response, err
 		}
 	} else {
+		err = fmt.Errorf("keys not found")
 		response.Success = false
-		response.Error = "keys not found"
-		return &response, errors.New(response.Error)
+		response.Error = err.Error()
+		return &response, err
 	}
 
 	response.Success = true
@@ -71,6 +75,7 @@ func (s *Server) Unlock(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResp
 	return &response, nil
 }
 
+// todo might be able to remove this as unused
 func (s *Server) SetPassword(_ context.Context, in *pb.PasswordRequest) (*pb.BoolResponse, error) {
 	if in.Password == "" {
 		return &pb.BoolResponse{Success: false, Error: "password can't be empty"}, errors.New("password can't be empty")
@@ -260,7 +265,6 @@ func (s *Server) CreateNewWallet(_ context.Context, in *pb.NewWalletRequest) (*p
 		err = os.Remove(src.PathDbWallet)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
-			// don't kill here try to delete the other file as well
 		}
 	}()
 
@@ -313,7 +317,6 @@ func (s *Server) RecoverWallet(_ context.Context, in *pb.RecoverWalletRequest) (
 		err = os.Remove(src.PathDbWallet)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
-			// don't kill here try to delete the other file as well
 		}
 	}()
 
@@ -368,6 +371,71 @@ func (s *Server) GetChain(_ context.Context, _ *pb.Empty) (*pb.Chain, error) {
 	return convertChainParam(src.ChainParams), nil
 }
 
+func (s *Server) GetScanOnlyData(_ context.Context, _ *pb.Empty) (*pb.ScanOnlyDataResponse, error) {
+	var response pb.ScanOnlyDataResponse
+
+	secretKeyFixed := s.Daemon.Wallet.SecretKeyScan()
+
+	response.ScanSecretKey = secretKeyFixed[:]
+	response.SpendPublicKey = s.Daemon.Wallet.PubKeySpend[:]
+
+	return &response, nil
+}
+
+func (s *Server) SetupScanOnly(_ context.Context, in *pb.ScanOnlySetupRequest) (*pb.BoolResponse, error) {
+
+	var err error
+	var response pb.BoolResponse
+	if utils.CheckIfFileExists(src.PathToKeys) {
+		response.Success = false
+		response.Error = "keys file already exists"
+		return &response, errors.New(response.Error)
+	}
+	if utils.CheckIfFileExists(src.PathDbWallet) {
+		return nil, errors.New("wallet file already exists")
+	}
+	if in.EncryptionPassword == "" {
+		response.Success = false
+		response.Error = "encryption password can't be empty"
+		return &response, errors.New(response.Error)
+	}
+	s.Daemon.Password = []byte(in.EncryptionPassword)
+	logging.InfoLogger.Println("password set")
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		s.Daemon.Locked = true
+		err = os.Remove(src.PathToKeys)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			// don't kill here try to delete the other file as well
+		}
+		err = os.Remove(src.PathDbWallet)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+		}
+	}()
+
+	var birthHeight uint64
+	if in.BirthHeight != nil {
+		birthHeight = *in.BirthHeight
+	}
+	var labelCount uint32
+	if in.LabelCount != nil {
+		labelCount = *in.LabelCount
+	}
+
+	s.Daemon.InitScanOnly([32]byte(in.ScanSecretKey), [33]byte(in.SpendPublicKey), birthHeight, labelCount)
+	s.Daemon.ReadyChan <- struct{}{}
+	s.Daemon.Status = pb.Status_STATUS_RUNNING
+
+	response.Success = true
+
+	return &response, err
+}
+
 func (s *Server) Start() error {
 	if s.Daemon == nil {
 		return src.ErrDaemonNotSet
@@ -377,12 +445,25 @@ func (s *Server) Start() error {
 	if err != nil && !strings.Contains(err.Error(), "no such file") {
 		panic(err)
 	}
-	listener, err := net.Listen("unix", src.PathIpcSocket)
-	if err != nil {
-		panic(err)
+
+	var listener net.Listener
+	if src.ExposeHttpHost == "" {
+		logging.InfoLogger.Println("Exposing on:", src.PathIpcSocket)
+		listener, err = net.Listen("unix", src.PathIpcSocket)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return err
+		}
+	} else {
+		logging.InfoLogger.Println("Exposing on:", src.ExposeHttpHost)
+		listener, err = net.Listen("tcp", src.ExposeHttpHost)
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return err
+		}
 	}
 
-	sGRpc := grpc.NewServer()
+	sGRpc := grpc.NewServer(grpc.UnaryInterceptor(s.stateInterceptor))
 	reflection.Register(sGRpc)
 
 	//sGRpc.GracefulStop() //todo this via channel that is fed from shutdown

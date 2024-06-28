@@ -8,10 +8,16 @@ import (
 
 var (
 
+	// ScanOnly if set the daemon will not be able to spend or hold any information required to spend the found UTXOs. It will just keep those ready.
+	ScanOnly bool
 	/* [Network] */
+
+	// ExposeHttpHost if set gRPC will be exposed via http and not unix socket. This variable also defines the where it will be exposed.
+	ExposeHttpHost string
 
 	// BlindBitServerAddress Indexing server for silent payments that follows the blindbit standard
 	BlindBitServerAddress string
+
 	// ElectrumServerAddress Electrum server
 	ElectrumServerAddress string
 
@@ -19,6 +25,7 @@ var (
 
 	// MinChangeAmount The wallet will never create change that is smaller than this value. Value has to be in sats.
 	MinChangeAmount int64
+
 	// DustLimit only receives amounts and checks tweaks where the biggest utxo exceeds the dust limit.
 	// Note: that if you receive funds below this threshold you might not find them.
 	// Rescan with DustLimit = 0 to find those.

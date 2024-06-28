@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/setavenger/blindbitd/pb"
 	"github.com/setavenger/blindbitd/src"
@@ -87,18 +88,18 @@ func (d *Daemon) LoadDataFromDB() error {
 	d.Mnemonic = keys.Mnemonic
 	// load keys in any case other data will be read in next step if available
 	wallet.LoadKeys(keys.ScanSecretKey, keys.SpendSecretKey)
-	err = wallet.CheckAndInitialiseFields()
-	if err != nil {
-		logging.ErrorLogger.Println(err)
-		return err
-	}
-
 	if utils.CheckIfFileExists(src.PathDbWallet) {
 		err = database.ReadFromDB(src.PathDbWallet, &wallet, d.Password)
 		if err != nil {
 			logging.ErrorLogger.Println(err)
 			return err
 		}
+	}
+
+	err = wallet.CheckAndInitialiseFields()
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
 	}
 
 	d.Wallet = &wallet
@@ -212,4 +213,34 @@ func (d *Daemon) RecoverFromSeed(mnemonic, seedPassphrase string, birthHeight ui
 	}
 
 	return err
+}
+
+func (d *Daemon) InitScanOnly(secretKeyScan [32]byte, pubKeySpend [33]byte, birthHeight uint64, labelCount uint32) error {
+	d.Wallet = src.NewWallet(birthHeight)
+
+	d.Wallet.LoadKeys(secretKeyScan, [32]byte{})
+	d.Wallet.PubKeySpend = pubKeySpend
+
+	if d.Wallet.ChangeLabel == nil {
+		_, err := d.Wallet.GenerateChangeLabel()
+		if err != nil {
+			logging.ErrorLogger.Println(err)
+			return err
+		}
+	}
+
+	for i := 1; i < int(labelCount)+1; i++ {
+		d.Wallet.GenerateNewLabel(fmt.Sprintf("auto-generated-%d", i))
+	}
+
+	var keys src.Keys
+	keys.ScanSecretKey = secretKeyScan
+
+	err := database.WriteToDB(src.PathToKeys, &keys, d.Password)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return err
+	}
+
+	return nil
 }

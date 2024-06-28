@@ -64,12 +64,14 @@ func (w *Wallet) LoadKeys(secretKeyScan, secretKeySpend [32]byte) {
 	w.secretKeySpend = secretKeySpend
 
 	_, pubKeyScan := btcec.PrivKeyFromBytes(secretKeyScan[:])
-	_, pubKeySpend := btcec.PrivKeyFromBytes(secretKeySpend[:])
+
+	// in case we load a scan only this applies
+	if !ScanOnly {
+		_, pubKeySpend := btcec.PrivKeyFromBytes(secretKeySpend[:])
+		w.PubKeySpend = bip352.ConvertToFixedLength33(pubKeySpend.SerializeCompressed())
+	}
 
 	w.PubKeyScan = bip352.ConvertToFixedLength33(pubKeyScan.SerializeCompressed())
-	w.PubKeySpend = bip352.ConvertToFixedLength33(pubKeySpend.SerializeCompressed())
-
-	return
 }
 
 func (w *Wallet) GenerateAddress() (string, error) {
@@ -102,6 +104,10 @@ func (w *Wallet) GenerateNewLabel(comment string) (*Label, error) {
 	}
 
 	BmKey, err := bip352.AddPublicKeys(w.PubKeySpend, label.PubKey)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return nil, err
+	}
 	address, err := bip352.CreateAddress(w.PubKeyScan, BmKey, mainnet, 0)
 	if err != nil {
 		return nil, err
@@ -138,8 +144,13 @@ func (w *Wallet) GenerateChangeLabel() (string, error) {
 	}
 
 	BmKey, err := bip352.AddPublicKeys(w.PubKeySpend, label.PubKey)
+	if err != nil {
+		logging.ErrorLogger.Println(err)
+		return "", err
+	}
 	address, err := bip352.CreateAddress(w.PubKeyScan, BmKey, mainnet, 0)
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		return "", err
 	}
 
@@ -177,7 +188,6 @@ func (w *Wallet) AddUTXOs(utxos []*OwnedUTXO) error {
 // Chose this approach to avoid accidentally exposing the change address.
 func (w *Wallet) FindLabelByPubKey(pubKey [33]byte) *Label {
 	panic("implement me")
-	return nil
 }
 
 func (w *Wallet) SecretKeyScan() [32]byte {
@@ -224,14 +234,21 @@ func (w *Wallet) GetUTXOsByStates(states ...UTXOState) UtxoCollection {
 }
 
 func (w *Wallet) CheckAndInitialiseFields() error {
+	var err error
 	secretKeyScan := w.SecretKeyScan()
 	if bytes.Equal(secretKeyScan[:], Empty32Arr[:]) {
-		return errors.New("empty scan secret key")
+		err = fmt.Errorf("empty scan secret key")
+		logging.ErrorLogger.Println(err)
+		return err
 	}
 
-	secretKeySpend := w.SecretKeySpend()
-	if bytes.Equal(secretKeySpend[:], Empty32Arr[:]) {
-		return errors.New("empty spend secret key")
+	if !ScanOnly {
+		secretKeySpend := w.SecretKeySpend()
+		if bytes.Equal(secretKeySpend[:], Empty32Arr[:]) {
+			err = fmt.Errorf("empty spend secret key")
+			logging.ErrorLogger.Println(err)
+			return err
+		}
 	}
 
 	if bytes.Equal(w.PubKeyScan[:], Empty33Arr[:]) {
@@ -253,7 +270,7 @@ func (w *Wallet) CheckAndInitialiseFields() error {
 	}
 
 	if w.ChangeLabel == nil {
-		_, err := w.GenerateChangeLabel()
+		_, err = w.GenerateChangeLabel()
 		if err != nil {
 			logging.ErrorLogger.Println(err)
 			return err
@@ -280,7 +297,7 @@ func (w *Wallet) CheckAndInitialiseFields() error {
 	}
 	w.UTXOs = newCollection
 
-	_, err := w.GenerateAddress()
+	_, err = w.GenerateAddress()
 	if err != nil {
 		logging.ErrorLogger.Println(err)
 		return err
@@ -297,7 +314,6 @@ type Address struct {
 func (w *Wallet) SortedAddresses() ([]Address, error) {
 	var addresses []Address
 
-	addresses = append(addresses)
 	var nextM = 1
 
 	for address, comment := range w.Addresses {
