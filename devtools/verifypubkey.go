@@ -33,6 +33,9 @@ var (
 				log.Fatalln(err)
 			}
 
+			if len(secretKeyBytes) != 32 {
+				log.Fatalf("secret key wrong length. expected 32 got %d\n", len(secretKeyBytes))
+			}
 			//message := []byte("message")
 			//aux := []byte("random auxiliary data")
 

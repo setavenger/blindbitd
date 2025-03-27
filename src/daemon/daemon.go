@@ -26,9 +26,14 @@ type Daemon struct {
 	Wallet            *src.Wallet
 	NewBlockChan      <-chan *electrum.SubscribeHeadersResult
 	TriggerRescanChan chan uint64
+	isShutdown        bool
 }
 
-func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client) (*Daemon, error) {
+func NewDaemon(
+	wallet *src.Wallet,
+	clientBlindBit *networking.ClientBlindBit,
+	clientElectrum *electrum.Client,
+) (*Daemon, error) {
 	var channel <-chan *electrum.SubscribeHeadersResult
 	var err error
 	if src.UseElectrum {
@@ -70,8 +75,6 @@ func (d *Daemon) Run() error {
 	return err
 }
 
-var exampleLabelComments = [5]string{"Hello", "Donations for project", "Family and Friends", "Deal 1", "Deal 2"}
-
 // LoadDataFromDB
 // Load keys and wallet data from disk
 func (d *Daemon) LoadDataFromDB() error {
@@ -108,12 +111,20 @@ func (d *Daemon) LoadDataFromDB() error {
 }
 
 func (d *Daemon) Shutdown() error {
+	if d.isShutdown {
+		fmt.Println("daemon is already shut down")
+		return nil
+	}
 	// todo save all data to a files
 	logging.InfoLogger.Println("Process shutting down")
+	defer func() {
+		fmt.Println("channel")
+		d.ShutdownChan <- struct{}{}
+		d.isShutdown = true
+		fmt.Println("channel done")
+		logging.DebugLogger.Println("daemon set to shut down")
+	}()
 
-	if d.ClientElectrum != nil {
-		d.ClientElectrum.Shutdown()
-	}
 	if d.Status == pb.Status_STATUS_NO_WALLET {
 		// we don't store anything if the wallet was not initialised yet
 		return nil

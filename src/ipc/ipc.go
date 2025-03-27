@@ -99,22 +99,20 @@ func (s *Server) SetPassword(_ context.Context, in *pb.PasswordRequest) (*pb.Boo
 }
 
 func (s *Server) Shutdown(_ context.Context, _ *pb.Empty) (*pb.BoolResponse, error) {
-	if s.Daemon.Locked {
-		return nil, src.ErrDaemonIsLocked
-	}
+	fmt.Println("shutdown called")
 	var response pb.BoolResponse
 
 	s.Daemon.Status = pb.Status_STATUS_SHUTTING_DOWN
 
 	err := s.Daemon.Shutdown()
 	if err != nil {
+		logging.ErrorLogger.Println(err)
 		response.Success = false
 		response.Error = err.Error()
 		return &response, err
 	}
 
 	response.Success = true
-	s.Daemon.ShutdownChan <- struct{}{}
 
 	return &response, nil
 }

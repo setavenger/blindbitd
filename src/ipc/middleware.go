@@ -24,7 +24,7 @@ type AccessRule struct {
 var accessPolicies = map[accessMode][]AccessRule{
 	// list of allowed endpoints
 	lockedDaemon: {
-		{Methods: []string{pb.IpcService_Status_FullMethodName, pb.IpcService_Unlock_FullMethodName, pb.IpcService_CreateNewLabel_FullMethodName, pb.IpcService_RecoverWallet_FullMethodName, pb.IpcService_SetupScanOnly_FullMethodName}, Allow: true},
+		{Methods: []string{pb.IpcService_Status_FullMethodName, pb.IpcService_Unlock_FullMethodName, pb.IpcService_CreateNewLabel_FullMethodName, pb.IpcService_RecoverWallet_FullMethodName, pb.IpcService_SetupScanOnly_FullMethodName, pb.IpcService_Shutdown_FullMethodName}, Allow: true},
 		{Methods: []string{"*"}, Allow: false},
 	},
 	// list of forbidden endpoints

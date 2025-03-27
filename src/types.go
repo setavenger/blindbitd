@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/setavenger/blindbitd/src/logging"
 	"github.com/setavenger/go-bip352"
 )
@@ -88,7 +89,7 @@ func (lm *LabelsMapping) GetLabelByPubKey(labelPubKey [33]byte) *Label {
 
 // UTXOMapping
 // the key is the utxos (txid||vout)
-// todo marshalling or unmarshalling seems to have some issues. Investigate root cause
+// todo marshalling or unmarshalling seems to have some issues. Investigate root cause.
 type UTXOMapping map[[36]byte]struct{}
 
 func (um *UTXOMapping) MarshalJSON() ([]byte, error) {

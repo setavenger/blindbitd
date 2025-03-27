@@ -45,13 +45,7 @@ func main() {
 		panic(err)
 	}
 
-	defer func() {
-		err = d.Shutdown()
-		if err != nil {
-			logging.ErrorLogger.Println(err)
-			panic(err)
-		}
-	}()
+	inLoopEndChannel := make(chan struct{})
 
 	go func() {
 		// todo remove after development. Replace with command line arg
@@ -98,6 +92,17 @@ func main() {
 			}
 		}()
 
+		go func() {
+			fmt.Println("did this even start?")
+			for {
+				select {
+				case <-d.ShutdownChan:
+					fmt.Println("ending here")
+					inLoopEndChannel <- struct{}{}
+				}
+			}
+		}()
+
 		// todo can this be more robust, especially considering the different unlocking/initialisation paths available
 		if utils.CheckIfFileExists(src.PathToKeys) || (src.ScanOnly && utils.CheckIfFileExists(src.PathDbWallet)) {
 			d.Status = pb.Status_STATUS_LOCKED
@@ -112,7 +117,6 @@ func main() {
 				return
 			}
 		} else {
-
 			// does *not* exist
 			d.Status = pb.Status_STATUS_NO_WALLET
 			if src.ScanOnly {
@@ -160,11 +164,18 @@ func main() {
 
 	for {
 		select {
-		case <-d.ShutdownChan:
-			fmt.Println("Daemon is shutting down...")
+		case <-inLoopEndChannel:
+			logging.DebugLogger.Println("Daemon shut down called...")
 			return
 		case <-interrupt:
+			logging.DebugLogger.Println("program interrupted")
+			err = d.Shutdown()
+			if err != nil {
+				logging.ErrorLogger.Println(err)
+				panic(err)
+			}
 			return
 		}
 	}
+
 }

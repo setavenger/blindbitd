@@ -16,7 +16,12 @@ func NewClient(socketPath string) (pb.IpcServiceClient, *grpc.ClientConn) {
 	defer cancel()
 
 	// Connect to the server with a timeout context
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix://%s", socketPath), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.DialContext(
+		ctx,
+		fmt.Sprintf("unix://%s", socketPath),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}

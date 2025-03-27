@@ -9,6 +9,8 @@ import (
 	"github.com/setavenger/go-bip352"
 )
 
+var exampleLabelComments = [5]string{"Hello", "Donations for project", "Family and Friends", "Deal 1", "Deal 2"}
+
 func (d *Daemon) LoadTestData() error {
 	d.Status = pb.Status_STATUS_STARTING
 	scanBytes, _ := hex.DecodeString("78e7fd7d2b7a2c1456709d147021a122d2dccaafeada040cc1002083e2833b09")
