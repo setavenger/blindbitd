@@ -1,0 +1,1 @@
+2025/03/27 20:24:46.930475 /Users/setorblagogee/go/workspace/blindbit/blindbitd/src/settings.go:72: [ERROR] Error reading config file, open datadirs/daemon/signet/blindbit.toml: no such file or directory

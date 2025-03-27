@@ -94,9 +94,6 @@ func (s *Server) SetPassword(_ context.Context, in *pb.PasswordRequest) (*pb.Boo
 }
 
 func (s *Server) Shutdown(_ context.Context, _ *pb.Empty) (*pb.BoolResponse, error) {
-	if s.Daemon.Locked {
-		return nil, src.ErrDaemonIsLocked
-	}
 	var response pb.BoolResponse
 
 	s.Daemon.Status = pb.Status_STATUS_SHUTTING_DOWN

@@ -53,6 +53,8 @@ func main() {
 		}
 	}()
 
+	forInGoRoutineExit := make(chan struct{})
+
 	go func() {
 		// todo remove after development. Replace with command line arg
 		src.SetPaths(dataDirectory)
@@ -94,6 +96,16 @@ func main() {
 			err = serverIpc.Start()
 			if err != nil {
 				return
+			}
+		}()
+
+		go func() {
+			for {
+				select {
+				case <-d.ShutdownChan:
+					// used for exists before unlocks or as a dumb simple fix
+					forInGoRoutineExit <- struct{}{}
+				}
 			}
 		}()
 
@@ -153,6 +165,8 @@ func main() {
 
 	for {
 		select {
+		case <-forInGoRoutineExit:
+			return
 		case <-d.ShutdownChan:
 			fmt.Println("Daemon is shutting down...")
 			return

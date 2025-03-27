@@ -25,6 +25,7 @@ type Daemon struct {
 	Wallet            *src.Wallet
 	NewBlockChan      <-chan *electrum.SubscribeHeadersResult
 	TriggerRescanChan chan uint64
+	isShutdown        bool
 }
 
 func NewDaemon(wallet *src.Wallet, clientBlindBit *networking.ClientBlindBit, clientElectrum *electrum.Client) (*Daemon, error) {
@@ -107,6 +108,11 @@ func (d *Daemon) LoadDataFromDB() error {
 }
 
 func (d *Daemon) Shutdown() error {
+	if d.isShutdown {
+		// no need to do anything here
+		logging.WarningLogger.Println("daemon was laready shutdown")
+		return nil
+	}
 	// todo save all data to a files
 	logging.InfoLogger.Println("Process shutting down")
 
