@@ -1,5 +1,10 @@
 # blindbitd (wip)
 
+> [!IMPORTANT]  
+> blindbitd is archived. More modern libraries and programs have evolved from it. See blindbit on https://github.com/setavenger
+
+
+
 Receive and send functionality. This is the daemon for the BlindBit Wallet. The daemon can be controlled
 with [blindbit-cli](./cli/README.md). Still in early testing, only use with funds you can
 afford to lose. When started and unlocked the daemon will run continuously in the background using minimal resources
